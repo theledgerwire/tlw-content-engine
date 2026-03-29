@@ -1,0 +1,48 @@
+name: TLW Image Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      post_text:
+        description: 'X post text'
+        required: true
+      headline1:
+        description: 'Headline line 1'
+        required: true
+      headline2:
+        description: 'Headline line 2'
+        required: true
+      image_keyword:
+        description: 'Unsplash search keyword'
+        required: false
+        default: 'finance technology'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pillow requests
+
+      - name: Install fonts
+        run: |
+          sudo apt-get install -y fonts-liberation
+
+      - name: Generate and post card
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+          BUFFER_PROFILE_X: ${{ secrets.BUFFER_PROFILE_X }}
+          UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
+          POST_TEXT: ${{ github.event.inputs.post_text }}
+          HEADLINE_LINE1: ${{ github.event.inputs.headline1 }}
+          HEADLINE_LINE2: ${{ github.event.inputs.headline2 }}
+          IMAGE_KEYWORD: ${{ github.event.inputs.image_keyword }}
+        run: python generate_image.py
