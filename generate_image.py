@@ -42,18 +42,17 @@ img.save("card.png", "PNG")
 print("Card saved: card.png")
 
 if BUFFER_API_KEY and BUFFER_PROFILE_X:
-    with open("card.png", "rb") as f:
-        r = requests.post(
-            "https://api.bufferapp.com/1/updates/create.json",
-            headers={"Authorization": f"Bearer {BUFFER_API_KEY}"},
-            data={
-                "profile_ids[]": BUFFER_PROFILE_X.strip(),
-                "text": POST_TEXT,
-                "now": "false",
-            },
-            files={"media[picture]": ("card.png", f, "image/png")},
-            timeout=30
-        )
+    r = requests.post(
+        "https://api.bufferapp.com/1/updates/create.json",
+        headers={"Authorization": f"Bearer {BUFFER_API_KEY}"},
+        data={
+            "profile_ids[]": BUFFER_PROFILE_X.strip(),
+            "text": POST_TEXT,
+            "now": "false",
+            "shorten": "false",
+        },
+        timeout=30
+    )
     print(f"Buffer status: {r.status_code}")
     print(f"Buffer response: {r.text[:500]}")
 else:
