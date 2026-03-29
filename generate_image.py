@@ -51,7 +51,7 @@ if BUFFER_API_KEY and BUFFER_PROFILE_X:
                 "text": POST_TEXT,
                 "now": "false",
             },
-            files={"media[photo]": ("card.png", f, "image/png")},
+            files={"media[picture]": ("card.png", f, "image/png")},
             timeout=30
         )
     print(f"Buffer status: {r.status_code}")
