@@ -22,27 +22,8 @@ FONT_REG  = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
 
 
 def get_unsplash_photo(keyword):
-    if not UNSPLASH_KEY:
-        print("No Unsplash key provided")
-        return None
-    try:
-        r = requests.get(
-            "https://api.unsplash.com/photos/random",
-            params={"query": keyword, "orientation": "squarish"},
-            headers={"Authorization": f"Client-ID {UNSPLASH_KEY}"},
-            timeout=15
-        )
-        print(f"Unsplash HTTP status: {r.status_code}")
-        if r.status_code != 200:
-            print(f"Unsplash error body: {r.text[:200]}")
-            return None
-        data = r.json()
-        img_url = data["urls"]["regular"]
-        img_data = requests.get(img_url, timeout=15).content
-        return Image.open(BytesIO(img_data)).convert("RGB")
-    except Exception as e:
-        print(f"Unsplash exception: {e}")
-        return None
+    print("Skipping Unsplash — using navy fallback")
+    return None
 
 
 def apply_gradient(img, start=0.30):
