@@ -20,6 +20,8 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v3
 
@@ -29,18 +31,17 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install pillow requests
+        run: pip install pillow requests
 
       - name: Install fonts
-        run: |
-          sudo apt-get install -y fonts-liberation
+        run: sudo apt-get install -y fonts-liberation
 
       - name: Generate and post card
         env:
           BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
           BUFFER_PROFILE_X: ${{ secrets.BUFFER_PROFILE_X }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           POST_TEXT: ${{ github.event.inputs.post_text }}
           HEADLINE_LINE1: ${{ github.event.inputs.headline1 }}
           HEADLINE_LINE2: ${{ github.event.inputs.headline2 }}
