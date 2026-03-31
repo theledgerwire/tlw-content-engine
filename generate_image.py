@@ -1,8 +1,3 @@
-bash
-
-cat /home/claude/tlw_engine/generate_image_final.py
-Output
-
 # TLW v6
 import os
 import requests
