@@ -172,7 +172,7 @@ def post_to_buffer(post_text, image_url, channel_id, api_key):
         text: "%s",
         channelId: "%s",
         schedulingType: automatic,
-        mode: customSchedule,
+        mode: customScheduled,
         assets: {
           images: [{ url: "%s" }]
         }
