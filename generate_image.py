@@ -1,8 +1,7 @@
-# TLW v6
+# TLW v7
 import os
 import requests
 import base64
-import json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 
@@ -28,7 +27,7 @@ DGREY     = (100, 115, 148)
 FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 FONT_REG  = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
 
-print("=== TLW Card Generator v6 ===")
+print("=== TLW Card Generator v7 ===")
 print(f"Profile ID: {BUFFER_PROFILE_X[:8] if BUFFER_PROFILE_X else 'MISSING'}...")
 
 def get_unsplash_photo(keyword):
@@ -161,7 +160,7 @@ def push_to_github(image_path, token, repo, file_path):
     print(f"GitHub push status: {put_r.status_code}")
     return put_r.status_code in [200, 201]
 
-# Post to Buffer using new GraphQL API
+# Post to Buffer using new GraphQL API with image
 def post_to_buffer(post_text, image_url, channel_id, api_key):
     print(f"Posting to Buffer via GraphQL...")
     import time
@@ -172,8 +171,11 @@ def post_to_buffer(post_text, image_url, channel_id, api_key):
       createPost(input: {
         text: "%s",
         channelId: "%s",
-        schedulingType: queue,
-        mediaUrls: ["%s"]
+        schedulingType: automatic,
+        mode: customSchedule,
+        assets: {
+          images: [{ url: "%s" }]
+        }
       }) {
         ... on PostActionSuccess {
           post { id text }
