@@ -3,17 +3,15 @@ name: TLW Image Generator
 on:
   workflow_dispatch:
     inputs:
-      post_text:
-        description: 'X post text'
+      story_title:
+        description: 'Story title from RSS'
         required: true
-      headline1:
-        description: 'Headline line 1'
-        required: true
-      headline2:
-        description: 'Headline line 2'
-        required: true
+      story_summary:
+        description: 'Story summary from RSS'
+        required: false
+        default: ''
       image_keyword:
-        description: 'Unsplash search keyword'
+        description: 'Fallback image keyword'
         required: false
         default: 'finance technology'
 
@@ -42,8 +40,13 @@ jobs:
           BUFFER_PROFILE_X: ${{ secrets.BUFFER_PROFILE_X }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          POST_TEXT: ${{ github.event.inputs.post_text }}
-          HEADLINE_LINE1: ${{ github.event.inputs.headline1 }}
-          HEADLINE_LINE2: ${{ github.event.inputs.headline2 }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          STORY_TITLE: ${{ github.event.inputs.story_title }}
+          STORY_SUMMARY: ${{ github.event.inputs.story_summary }}
           IMAGE_KEYWORD: ${{ github.event.inputs.image_keyword }}
         run: python generate_image.py
+```
+
+**3. Update Make.com HTTP 5 body** to pass title and summary:
+```
+{"ref":"main","inputs":{"story_title":"{{1.title}}","story_summary":"{{1.summary}}","image_keyword":"finance technology"}}
