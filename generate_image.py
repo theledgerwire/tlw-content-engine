@@ -1,17 +1,23 @@
-# TLW v5
+# TLW v6
 import os
 import requests
 import base64
+import json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 
 BUFFER_API_KEY   = os.environ.get("BUFFER_API_KEY", "")
 BUFFER_PROFILE_X = os.environ.get("BUFFER_PROFILE_X", "")
+GITHUB_TOKEN     = os.environ.get("GITHUB_TOKEN", "")
 POST_TEXT        = os.environ.get("POST_TEXT", "")
 HEADLINE_LINE1   = os.environ.get("HEADLINE_LINE1", "Breaking news.")
 HEADLINE_LINE2   = os.environ.get("HEADLINE_LINE2", "Read the full story.")
 UNSPLASH_KEY     = os.environ.get("UNSPLASH_KEY", "")
 IMAGE_KEYWORD    = os.environ.get("IMAGE_KEYWORD", "finance technology")
+
+REPO             = "theledgerwire/tlw-content-engine"
+IMAGE_PATH       = "cards/latest.png"
+RAW_URL          = f"https://raw.githubusercontent.com/{REPO}/main/{IMAGE_PATH}"
 
 W, H      = 1080, 1080
 GOLD      = (240, 185, 11)
@@ -22,7 +28,7 @@ DGREY     = (100, 115, 148)
 FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 FONT_REG  = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
 
-print("=== TLW Card Generator v5 ===")
+print("=== TLW Card Generator v6 ===")
 print(f"Profile ID: {BUFFER_PROFILE_X[:8] if BUFFER_PROFILE_X else 'MISSING'}...")
 
 def get_unsplash_photo(keyword):
@@ -37,7 +43,6 @@ def get_unsplash_photo(keyword):
         )
         print(f"Unsplash status: {r.status_code}")
         if r.status_code != 200:
-            print(f"Unsplash error: {r.text[:100]}")
             return None
         data = r.json()
         img_url = data["urls"]["regular"]
@@ -59,7 +64,6 @@ def get_unsplash_photo(keyword):
         return None
 
 def apply_gradient(img, start=0.30):
-    from PIL import ImageEnhance
     grad = Image.new("RGBA", (W, H), (0,0,0,0))
     gd = ImageDraw.Draw(grad)
     for y in range(int(H*start), H):
@@ -124,59 +128,76 @@ draw.text((W-220, H-31), "#AI  #Finance", font=tag_f, fill=LGREY)
 img.save("card.png", "PNG")
 print("Card saved: card.png")
 
-# Upload to Buffer
-if BUFFER_API_KEY and BUFFER_PROFILE_X:
-    print("Uploading to Buffer...")
-    try:
-        # Step 1: Upload media to Buffer
-        with open("card.png", "rb") as f:
-            upload_r = requests.post(
-                "https://api.bufferapp.com/1/media/upload.json",
-                headers={"Authorization": f"Bearer {BUFFER_API_KEY}"},
-                files={"file": ("card.png", f, "image/png")},
-                timeout=30
-            )
-        print(f"Media upload status: {upload_r.status_code}")
-        print(f"Media upload response: {upload_r.text[:300]}")
+# Push image to GitHub
+def push_to_github(image_path, token, repo, file_path):
+    print(f"Pushing image to GitHub: {file_path}")
+    with open(image_path, "rb") as f:
+        content = base64.b64encode(f.read()).decode("utf-8")
 
-        if upload_r.status_code == 200:
-            media_data = upload_r.json()
-            media_id = media_data.get("media_id") or media_data.get("id")
-            print(f"Media ID: {media_id}")
+    # Check if file exists to get SHA
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    get_r = requests.get(
+        f"https://api.github.com/repos/{repo}/contents/{file_path}",
+        headers=headers
+    )
+    sha = get_r.json().get("sha") if get_r.status_code == 200 else None
 
-            # Step 2: Create update with media
-            update_r = requests.post(
-                "https://api.bufferapp.com/1/updates/create.json",
-                headers={"Authorization": f"Bearer {BUFFER_API_KEY}"},
-                data={
-                    "profile_ids[]": BUFFER_PROFILE_X.strip(),
-                    "text": POST_TEXT,
-                    "now": "false",
-                    "shorten": "false",
-                    "media[photo]": media_id,
-                },
-                timeout=30
-            )
-            print(f"Buffer update status: {update_r.status_code}")
-            print(f"Buffer update response: {update_r.text[:300]}")
+    payload = {
+        "message": "Update card image",
+        "content": content,
+        "branch": "main"
+    }
+    if sha:
+        payload["sha"] = sha
+
+    put_r = requests.put(
+        f"https://api.github.com/repos/{repo}/contents/{file_path}",
+        headers=headers,
+        json=payload,
+        timeout=30
+    )
+    print(f"GitHub push status: {put_r.status_code}")
+    return put_r.status_code in [200, 201]
+
+# Post to Buffer with image URL
+def post_to_buffer(post_text, image_url, profile_id, api_key):
+    print(f"Posting to Buffer with image URL: {image_url}")
+    import time
+    time.sleep(5)  # Wait for GitHub to serve the file
+
+    r = requests.post(
+        "https://api.bufferapp.com/1/updates/create.json",
+        headers={"Authorization": f"Bearer {api_key}"},
+        data={
+            "profile_ids[]": profile_id.strip(),
+            "text": post_text,
+            "now": "false",
+            "shorten": "false",
+            "media[photo]": image_url,
+            "media[thumbnail]": image_url,
+        },
+        timeout=30
+    )
+    print(f"Buffer status: {r.status_code}")
+    print(f"Buffer response: {r.text[:400]}")
+    return r.status_code == 200
+
+if BUFFER_API_KEY and BUFFER_PROFILE_X and GITHUB_TOKEN:
+    pushed = push_to_github("card.png", GITHUB_TOKEN, REPO, IMAGE_PATH)
+    if pushed:
+        success = post_to_buffer(POST_TEXT, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY)
+        if success:
+            print("SUCCESS: Posted to Buffer with image!")
         else:
-            # Fallback: post without image
-            print("Media upload failed — posting text only as fallback")
-            fallback_r = requests.post(
-                "https://api.bufferapp.com/1/updates/create.json",
-                headers={"Authorization": f"Bearer {BUFFER_API_KEY}"},
-                data={
-                    "profile_ids[]": BUFFER_PROFILE_X.strip(),
-                    "text": POST_TEXT,
-                    "now": "false",
-                    "shorten": "false",
-                },
-                timeout=30
-            )
-            print(f"Fallback status: {fallback_r.status_code}")
-            print(f"Fallback response: {fallback_r.text[:300]}")
-
-    except Exception as e:
-        print(f"Buffer exception: {e}")
+            print("FAILED: Buffer posting failed")
+    else:
+        print("FAILED: GitHub push failed")
 else:
-    print("Buffer credentials missing — card saved to card.png only")
+    missing = []
+    if not BUFFER_API_KEY: missing.append("BUFFER_API_KEY")
+    if not BUFFER_PROFILE_X: missing.append("BUFFER_PROFILE_X")
+    if not GITHUB_TOKEN: missing.append("GITHUB_TOKEN")
+    print(f"Missing credentials: {', '.join(missing)}")
