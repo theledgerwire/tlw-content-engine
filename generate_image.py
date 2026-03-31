@@ -16,7 +16,8 @@ STORY_SUMMARY    = os.environ.get("STORY_SUMMARY", "")
 IMAGE_KEYWORD    = os.environ.get("IMAGE_KEYWORD", "finance technology")
 
 REPO             = "theledgerwire/tlw-content-engine"
-IMAGE_PATH       = "cards/latest.png"
+import time
+IMAGE_PATH       = f"cards/card_{int(time.time())}.png"
 RAW_URL          = f"https://raw.githubusercontent.com/{REPO}/main/{IMAGE_PATH}"
 
 W, H      = 1080, 1080
@@ -273,8 +274,8 @@ if claude_result == "SKIP" or claude_result is None:
     exit(0)
 
 tweet_text  = claude_result.get("tweet", STORY_TITLE)
-headline1   = claude_result.get("h1", "Breaking news.")
-headline2   = claude_result.get("h2", "Read the full story.")
+headline1   = claude_result.get("h1", "Breaking news.").replace("**", "").replace("*", "").strip()
+headline2   = claude_result.get("h2", "Read the full story.").replace("**", "").replace("*", "").strip()
 img_keyword = claude_result.get("keyword", IMAGE_KEYWORD)
 
 print(f"Tweet: {tweet_text[:80]}...")
