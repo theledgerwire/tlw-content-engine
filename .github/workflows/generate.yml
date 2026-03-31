@@ -45,8 +45,3 @@ jobs:
           STORY_SUMMARY: ${{ github.event.inputs.story_summary }}
           IMAGE_KEYWORD: ${{ github.event.inputs.image_keyword }}
         run: python generate_image.py
-```
-
-**3. Update Make.com HTTP 5 body** to pass title and summary:
-```
-{"ref":"main","inputs":{"story_title":"{{1.title}}","story_summary":"{{1.summary}}","image_keyword":"finance technology"}}
