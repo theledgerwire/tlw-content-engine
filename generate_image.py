@@ -1,3 +1,8 @@
+bash
+
+cat /home/claude/tlw_engine/generate_image_final.py
+Output
+
 # TLW v6
 import os
 import requests
@@ -134,7 +139,6 @@ def push_to_github(image_path, token, repo, file_path):
     with open(image_path, "rb") as f:
         content = base64.b64encode(f.read()).decode("utf-8")
 
-    # Check if file exists to get SHA
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github.v3+json"
@@ -162,23 +166,36 @@ def push_to_github(image_path, token, repo, file_path):
     print(f"GitHub push status: {put_r.status_code}")
     return put_r.status_code in [200, 201]
 
-# Post to Buffer with image URL
-def post_to_buffer(post_text, image_url, profile_id, api_key):
-    print(f"Posting to Buffer with image URL: {image_url}")
+# Post to Buffer using new GraphQL API
+def post_to_buffer(post_text, image_url, channel_id, api_key):
+    print(f"Posting to Buffer via GraphQL...")
     import time
-    time.sleep(5)  # Wait for GitHub to serve the file
+    time.sleep(5)
+
+    safe_text = post_text.replace('\\', '\\\\').replace('"', '\\"')
+    query = '''mutation CreatePost {
+      createPost(input: {
+        text: "%s",
+        channelId: "%s",
+        schedulingType: queue,
+        mediaUrls: ["%s"]
+      }) {
+        ... on PostActionSuccess {
+          post { id text }
+        }
+        ... on MutationError {
+          message
+        }
+      }
+    }''' % (safe_text, channel_id.strip(), image_url)
 
     r = requests.post(
-        "https://api.bufferapp.com/1/updates/create.json",
-        headers={"Authorization": f"Bearer {api_key}"},
-        data={
-            "profile_ids[]": profile_id.strip(),
-            "text": post_text,
-            "now": "false",
-            "shorten": "false",
-            "media[photo]": image_url,
-            "media[thumbnail]": image_url,
+        "https://api.buffer.com",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
         },
+        json={"query": query},
         timeout=30
     )
     print(f"Buffer status: {r.status_code}")
