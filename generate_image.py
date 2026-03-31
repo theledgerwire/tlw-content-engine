@@ -170,8 +170,8 @@ def generate_card(headline1, headline2, keyword):
     draw.text((PAD, 36), logo_t, font=logo_f, fill=WHITE)
     draw.rectangle([(PAD, 59),(PAD+lw, 62)], fill=GOLD)
 
-    h1_f  = ImageFont.truetype(FONT_BOLD, 88)
-    h2_f  = ImageFont.truetype(FONT_BOLD, 80)
+    h1_f  = ImageFont.truetype(FONT_BOLD, 72)
+    h2_f  = ImageFont.truetype(FONT_BOLD, 64)
     src_f = ImageFont.truetype(FONT_REG, 21)
 
     SAFE_BOT = H - 46 - 18
