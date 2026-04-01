@@ -53,10 +53,23 @@ Story title: {title}
 Story summary: {summary}
 
 Reply SKIP if the story is primarily about ANY of these:
-- Geopolitics, war, military, Iran, Middle East, Russia, China politics
-- Food, consumer products, coffee, restaurants
-- Sports, entertainment, celebrities
-- General manufacturing or trade unless directly about AI or fintech
+- Geopolitics, war, military, Iran, Middle East, Russia, Ukraine — unless directly causing market moves
+- China politics or government — BUT keep China stories about AI, crypto, fintech, business, finance, technology
+- Robotaxis, autonomous vehicles, self-driving cars — UNLESS directly tied to stock price, earnings, or AI investment impact
+- Food, consumer products, coffee, restaurants, retail
+- Sports, entertainment, celebrities, social media drama
+- General manufacturing or supply chain — unless directly about AI automation or fintech disruption
+- Any story where the primary angle is NOT about money, investing, AI tools, or business/tech impact on finance professionals
+
+KEEP all stories about:
+- Chinese AI companies (Baidu AI, Alibaba Cloud, ByteDance, DeepSeek) and their technology or business impact
+- China crypto regulation or adoption
+- China fintech (Ant Group, WeChat Pay) and financial technology
+- Global AI investment, funding rounds, or valuations — regardless of country
+- Any tech company layoffs, earnings, or AI strategy — regardless of country
+- Trade tariffs, trade wars, sanctions — when they directly impact stock markets, tech companies, or finance
+- US-China trade tensions that affect tech stocks, semiconductors, or financial markets
+- Global supply chain disruptions that move commodity prices or equity markets
 
 Reply SKIP unless the story is DIRECTLY and PRIMARILY about:
 - Artificial intelligence in finance or banking
@@ -178,6 +191,10 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
         result["h2"] = result["h2"].replace("**", "").replace("*", "").strip()
 
         print(f"Tweet ({x_char_count(result['tweet'])} chars): {result['tweet'][:80]}...")
+        # Hard guard — if H1/H2 are still defaults, Claude parsing failed
+        if result.get("h1") in ["Breaking Now", "", None] or result.get("h2") in ["Read Full Story", "", None]:
+            print("WARNING: H1/H2 are defaults — Claude response likely malformed — treating as SKIP")
+            return "SKIP"
         print(f"H1: {result['h1']}")
         print(f"H2: {result['h2']}")
         print(f"LinkedIn preview: {result['linkedin'][:100]}...")
