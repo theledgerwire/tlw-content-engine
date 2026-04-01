@@ -243,99 +243,156 @@ def wrap_text(draw, text, font, max_width):
     return lines
 
 
-def generate_card(headline1, headline2, keyword):
-    photo = get_unsplash_photo(keyword)
-    if photo:
-        img = apply_gradient(photo)
-        print("Using Unsplash photo")
-    else:
-        img = Image.new("RGB", (W, H), NAVY)
-        draw_fb = ImageDraw.Draw(img)
-        for y in range(0, H):
-            t = y / H
-            r_val = int(10 + (20 - 10) * t)
-            g_val = int(22 + (35 - 22) * t)
-            b_val = int(40 + (65 - 40) * t)
-            draw_fb.line([(0, y), (W, y)], fill=(r_val, g_val, b_val))
-        # Grid lines
-        for x in range(0, W, 54):
-            draw_fb.line([(x, 0), (x, H - 72)], fill=(255, 255, 255, 10))
-        for y in range(0, H - 72, 54):
-            draw_fb.line([(0, y), (W, y)], fill=(255, 255, 255, 10))
-        print("Using navy gradient fallback")
-
-    draw = ImageDraw.Draw(img)
-    PAD = 56
-    MAX_TEXT_W = W - PAD - 40
-
-    # ── LEFT GOLD BAR ──
-    draw.rectangle([(0, 0), (6, H - 72)], fill=GOLD)
-
-    # ── LOGO ──
-    logo_f = ImageFont.truetype(FONT_BOLD, 19)
-    logo_t = "THE LEDGER WIRE"
-    lb = draw.textbbox((0, 0), logo_t, font=logo_f)
-    lw = lb[2] - lb[0]
-    draw.text((PAD, 36), logo_t, font=logo_f, fill=WHITE)
-    draw.rectangle([(PAD, 59), (PAD + lw, 62)], fill=GOLD)
-
-    # ── FONTS ──
-    h1_f  = ImageFont.truetype(FONT_BOLD, 72)
-    h2_f  = ImageFont.truetype(FONT_BOLD, 60)
-    src_f = ImageFont.truetype(FONT_REG, 21)
-
-    # ── WRAP HEADLINES ──
-    h1_lines = wrap_text(draw, headline1, h1_f, MAX_TEXT_W)
-    h2_lines = wrap_text(draw, headline2, h2_f, MAX_TEXT_W)
-
-    h1_line_h = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
-    h2_line_h = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
-    src_h     = draw.textbbox((0, 0), "theledgerwire.com", font=src_f)[3]
-
-    total_h1 = h1_line_h * len(h1_lines) + 4 * (len(h1_lines) - 1)
-    total_h2 = h2_line_h * len(h2_lines) + 4 * (len(h2_lines) - 1)
-
-    SAFE_BOT = H - 72 - 20
-    src_y    = SAFE_BOT - src_h
-    l2_y     = src_y - 20 - total_h2
-    l1_y     = l2_y - 10 - total_h1
-    rule_y   = l1_y - 20
-
-    # ── GOLD RULE ──
-    draw.rectangle([(PAD, rule_y), (PAD + 90, rule_y + 4)], fill=GOLD)
-
-    # ── H1 (white) ──
-    y = l1_y
-    for line in h1_lines:
-        draw.text((PAD, y), line, font=h1_f, fill=WHITE)
-        y += h1_line_h + 4
-
-    # ── H2 (gold) ──
-    y = l2_y
-    for line in h2_lines:
-        draw.text((PAD, y), line, font=h2_f, fill=GOLD)
-        y += h2_line_h + 4
-
-    # ── SOURCE ──
-    draw.text((PAD, src_y), "theledgerwire.com", font=src_f, fill=DGREY)
-
-    # ── FOOTER BAR ──
+def draw_footer(draw):
+    """Gold footer bar — same on both card types."""
+    PAD   = 56
     draw.rectangle([(0, H - 72), (W, H)], fill=GOLD)
     url_f   = ImageFont.truetype(FONT_BOLD, 19)
     tags_f  = ImageFont.truetype(FONT_REG, 19)
     brand_t = "THE LEDGER WIRE"
     url_t   = "theledgerwire.com"
     btb     = draw.textbbox((0, 0), brand_t, font=url_f)
-    bw      = btb[2] - btb[0]
     utb     = draw.textbbox((0, 0), url_t, font=tags_f)
     uw      = utb[2] - utb[0]
     foot_y  = H - 72 + (72 - btb[3]) // 2
     draw.text((PAD, foot_y), brand_t, font=url_f, fill=NAVY)
     draw.text((W - PAD - uw, foot_y), url_t, font=tags_f, fill=NAVY)
 
+
+def card_with_photo(img, headline1, headline2):
+    """DESIGN MODE 1 — Full bleed photo. Like oracle-v1."""
+    draw      = ImageDraw.Draw(img)
+    PAD       = 56
+    MAX_TEXT_W = W - PAD - 40
+
+    # Left gold bar
+    draw.rectangle([(0, 0), (6, H - 72)], fill=GOLD)
+
+    # Logo
+    logo_f = ImageFont.truetype(FONT_BOLD, 20)
+    logo_t = "THE LEDGER WIRE"
+    lb     = draw.textbbox((0, 0), logo_t, font=logo_f)
+    lw     = lb[2] - lb[0]
+    draw.text((PAD, 36), logo_t, font=logo_f, fill=WHITE)
+    draw.rectangle([(PAD, 60), (PAD + lw, 63)], fill=GOLD)
+
+    h1_f  = ImageFont.truetype(FONT_BOLD, 76)
+    h2_f  = ImageFont.truetype(FONT_BOLD, 64)
+    src_f = ImageFont.truetype(FONT_REG, 22)
+
+    h1_lines = wrap_text(draw, headline1, h1_f, MAX_TEXT_W)
+    h2_lines = wrap_text(draw, headline2, h2_f, MAX_TEXT_W)
+    h1_lh    = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
+    h2_lh    = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
+    src_h    = draw.textbbox((0, 0), "theledgerwire.com", font=src_f)[3]
+    total_h1 = h1_lh * len(h1_lines) + 4 * (len(h1_lines) - 1)
+    total_h2 = h2_lh * len(h2_lines) + 4 * (len(h2_lines) - 1)
+
+    SAFE_BOT = H - 72 - 22
+    src_y    = SAFE_BOT - src_h
+    l2_y     = src_y - 20 - total_h2
+    l1_y     = l2_y - 12 - total_h1
+    rule_y   = l1_y - 22
+
+    draw.rectangle([(PAD, rule_y), (PAD + 52, rule_y + 4)], fill=GOLD)
+
+    y = l1_y
+    for line in h1_lines:
+        draw.text((PAD, y), line, font=h1_f, fill=WHITE)
+        y += h1_lh + 4
+
+    y = l2_y
+    for line in h2_lines:
+        draw.text((PAD, y), line, font=h2_f, fill=GOLD)
+        y += h2_lh + 4
+
+    draw.text((PAD, src_y), "theledgerwire.com", font=src_f, fill=DGREY)
+    draw_footer(draw)
     img.save("card.png", "PNG")
-    print("Card saved: card.png")
+    print("Card saved (photo mode)")
+
+
+def card_no_photo(headline1, headline2):
+    """DESIGN MODE 2 — Navy grid fallback. Like starcloud."""
+    img  = Image.new("RGB", (W, H), NAVY)
+    draw = ImageDraw.Draw(img)
+
+    # Navy gradient
+    for y_px in range(0, H):
+        t = y_px / H
+        draw.line(
+            [(0, y_px), (W, y_px)],
+            fill=(int(10 + 15*t), int(22 + 18*t), int(40 + 28*t))
+        )
+
+    # Grid overlay
+    grid_img  = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    grid_draw = ImageDraw.Draw(grid_img)
+    for x in range(0, W, 54):
+        grid_draw.line([(x, 0), (x, H - 72)], fill=(255, 255, 255, 10))
+    for y_px in range(0, H - 72, 54):
+        grid_draw.line([(0, y_px), (W, y_px)], fill=(255, 255, 255, 10))
+    img  = Image.alpha_composite(img.convert("RGBA"), grid_img).convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    PAD        = 86
+    MAX_TEXT_W = W - PAD - 40
+
+    # Left gold bar
+    draw.rectangle([(0, 0), (6, H - 72)], fill=GOLD)
+
+    # Logo
+    logo_f = ImageFont.truetype(FONT_BOLD, 18)
+    logo_t = "THE LEDGER WIRE"
+    lb     = draw.textbbox((0, 0), logo_t, font=logo_f)
+    lw     = lb[2] - lb[0]
+    draw.text((PAD, 52), logo_t, font=logo_f, fill=WHITE)
+    draw.rectangle([(PAD, 74), (PAD + lw, 77)], fill=GOLD)
+
+    # Dominant H1 — large gold at top
+    h1_f     = ImageFont.truetype(FONT_BOLD, 120)
+    h1_lines = wrap_text(draw, headline1, h1_f, MAX_TEXT_W)
+    h1_lh    = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
+
+    y = 110
+    for line in h1_lines:
+        draw.text((PAD, y), line, font=h1_f, fill=GOLD)
+        y += h1_lh + 4
+
+    # H2 — white subtitle
+    h2_f     = ImageFont.truetype(FONT_BOLD, 52)
+    h2_lines = wrap_text(draw, headline2, h2_f, MAX_TEXT_W)
+    h2_lh    = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
+
+    y += 16
+    for line in h2_lines:
+        draw.text((PAD, y), line, font=h2_f, fill=WHITE)
+        y += h2_lh + 4
+
+    # Gold divider
+    y += 20
+    draw.rectangle([(PAD, y), (PAD + 200, y + 5)], fill=GOLD)
+
+    # Source
+    src_f = ImageFont.truetype(FONT_REG, 22)
+    draw.text((PAD, H - 72 - 36), "theledgerwire.com", font=src_f, fill=DGREY)
+
+    draw_footer(draw)
+    img.save("card.png", "PNG")
+    print("Card saved (fallback mode)")
+
+
+def generate_card(headline1, headline2, keyword):
+    photo = get_unsplash_photo(keyword)
+    if photo:
+        img = apply_gradient(photo)
+        print("Photo found → photo card design")
+        card_with_photo(img, headline1, headline2)
+    else:
+        print("No photo → navy stat card design")
+        card_no_photo(headline1, headline2)
     return "card.png"
+
 
 
 # ── GITHUB ────────────────────────────────────────────────────────
