@@ -47,7 +47,7 @@ jobs:
           STORY_TITLE: ${{ github.event.inputs.story_title }}
           STORY_SUMMARY: ${{ github.event.inputs.story_summary }}
           IMAGE_KEYWORD: ${{ github.event.inputs.image_keyword }}
-        run: python tlw_post_v12.py
+        run: python generate_image.py
 
       - name: Upload card as artifact (debug)
         if: always()
