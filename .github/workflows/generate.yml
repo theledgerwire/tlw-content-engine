@@ -20,11 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -45,4 +47,12 @@ jobs:
           STORY_TITLE: ${{ github.event.inputs.story_title }}
           STORY_SUMMARY: ${{ github.event.inputs.story_summary }}
           IMAGE_KEYWORD: ${{ github.event.inputs.image_keyword }}
-        run: python generate_image.py
+        run: python tlw_post_v12.py
+
+      - name: Upload card as artifact (debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-output
+          path: card.png
+          retention-days: 3
