@@ -297,15 +297,22 @@ def draw_footer(draw):
 
 
 def card_with_photo(img, headline1, headline2, hook=""):
-    """DESIGN MODE 1 — Full bleed photo. Like oracle-v1."""
-    draw      = ImageDraw.Draw(img)
-    PAD       = 56
+    """DESIGN MODE 1 — Full bleed photo.
+    Layout bottom-up:
+      source line (grey, tiny)
+      HOOK (white bold — biggest closer)
+      H2 (gold, medium — company/context)
+      H1 (white, large — stat/number)
+      gold rule
+    """
+    draw       = ImageDraw.Draw(img)
+    PAD        = 56
     MAX_TEXT_W = W - PAD - 40
 
     # Left gold bar
     draw.rectangle([(0, 0), (6, H - 72)], fill=GOLD)
 
-    # Logo
+    # Logo top left
     logo_f = ImageFont.truetype(FONT_BOLD, 20)
     logo_t = "THE LEDGER WIRE"
     lb     = draw.textbbox((0, 0), logo_t, font=logo_f)
@@ -313,40 +320,56 @@ def card_with_photo(img, headline1, headline2, hook=""):
     draw.text((PAD, 36), logo_t, font=logo_f, fill=WHITE)
     draw.rectangle([(PAD, 60), (PAD + lw, 63)], fill=GOLD)
 
-    h1_f  = ImageFont.truetype(FONT_BOLD, 76)
-    h2_f  = ImageFont.truetype(FONT_BOLD, 64)
-    src_f = ImageFont.truetype(FONT_REG, 22)
+    # Font hierarchy — H1 big, H2 medium, HOOK bold closer
+    h1_f   = ImageFont.truetype(FONT_BOLD, 90)   # stat — biggest
+    h2_f   = ImageFont.truetype(FONT_BOLD, 46)   # context — medium
+    hook_f = ImageFont.truetype(FONT_BOLD, 46)   # closer — same as H2
+    src_f  = ImageFont.truetype(FONT_REG,  20)   # source — tiny
 
-    h1_lines = wrap_text(draw, headline1, h1_f, MAX_TEXT_W)
-    h2_lines = wrap_text(draw, headline2, h2_f, MAX_TEXT_W)
-    h1_lh    = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
-    h2_lh    = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
-    src_h    = draw.textbbox((0, 0), "theledgerwire.com", font=src_f)[3]
-    total_h1 = h1_lh * len(h1_lines) + 4 * (len(h1_lines) - 1)
-    total_h2 = h2_lh * len(h2_lines) + 4 * (len(h2_lines) - 1)
+    h1_lines   = wrap_text(draw, headline1, h1_f, MAX_TEXT_W)
+    h2_lines   = wrap_text(draw, headline2, h2_f, MAX_TEXT_W)
+    hook_lines = wrap_text(draw, hook, hook_f, MAX_TEXT_W) if hook else []
 
-    SAFE_BOT = H - 72 - 22
+    h1_lh   = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
+    h2_lh   = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
+    hook_lh = draw.textbbox((0, 0), "Ag", font=hook_f)[3]
+    src_h   = draw.textbbox((0, 0), "theledgerwire.com", font=src_f)[3]
+
+    total_h1   = h1_lh   * len(h1_lines)   + 4 * max(0, len(h1_lines)   - 1)
+    total_h2   = h2_lh   * len(h2_lines)   + 4 * max(0, len(h2_lines)   - 1)
+    total_hook = hook_lh * len(hook_lines) + 4 * max(0, len(hook_lines) - 1)
+
+    # Build layout bottom-up
+    SAFE_BOT = H - 72 - 24
     src_y    = SAFE_BOT - src_h
-    l2_y     = src_y - 20 - total_h2
-    l1_y     = l2_y - 12 - total_h1
-    rule_y   = l1_y - 22
+    hook_y   = src_y - 14 - total_hook if hook else src_y
+    h2_y     = hook_y - 14 - total_h2
+    h1_y     = h2_y  - 10 - total_h1
+    rule_y   = h1_y  - 20
 
+    # Gold accent rule
     draw.rectangle([(PAD, rule_y), (PAD + 52, rule_y + 4)], fill=GOLD)
 
-    y = l1_y
+    # H1 — white, large stat
+    y = h1_y
     for line in h1_lines:
         draw.text((PAD, y), line, font=h1_f, fill=WHITE)
         y += h1_lh + 4
 
-    y = l2_y
+    # H2 — gold, company/context
+    y = h2_y
     for line in h2_lines:
         draw.text((PAD, y), line, font=h2_f, fill=GOLD)
         y += h2_lh + 4
 
-    # Hook line (white) + source below it
-    if hook:
-        hook_f = ImageFont.truetype(FONT_BOLD, 34)
-        draw.text((PAD, src_y - 44), hook, font=hook_f, fill=WHITE)
+    # HOOK — white bold closer
+    if hook_lines:
+        y = hook_y
+        for line in hook_lines:
+            draw.text((PAD, y), line, font=hook_f, fill=WHITE)
+            y += hook_lh + 4
+
+    # Source
     draw.text((PAD, src_y), "theledgerwire.com", font=src_f, fill=DGREY)
     draw_footer(draw)
     img.save("card.png", "PNG")
