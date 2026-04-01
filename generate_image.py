@@ -57,8 +57,8 @@ Reply SKIP unless the story is DIRECTLY and PRIMARILY about:
 
 If relevant, reply in this EXACT format with no extra text:
 TWEET: [tweet STRICTLY under 220 chars including spaces, lead with surprise, make it personal, end with dry wit, finish with → theledgerwire.com #AI #Finance]
-H1: [max 4 words, no asterisks, no punctuation]
-H2: [max 4 words, no asterisks, no punctuation]
+H1: [3-4 words, gut punch headline, write like texting a smart friend, use "you" or action words, never corporate language like deploys/utilizes/leverages, no asterisks. Examples: "Your banker is AI." / "Powell said no." / "AI ate banking." / "The Fed blinked."]
+H2: [3-4 words, punchy follow-up that adds twist or "so what", creates curiosity, no asterisks. Examples: "Goldman made it official." / "Your mortgage feels it." / "Here's the bill." / "Now what?"]
 KEYWORD: [2-3 word Unsplash search term]"""
 
     try:
