@@ -1,13 +1,14 @@
-# TLW v9 - Claude called inside Python
+# TLW v11 - Posts to X + LinkedIn, text wrapping, strict filter
 import os
+import time
 import requests
 import base64
-import json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 
 BUFFER_API_KEY   = os.environ.get("BUFFER_API_KEY", "")
 BUFFER_PROFILE_X = os.environ.get("BUFFER_PROFILE_X", "")
+BUFFER_PROFILE_LI= os.environ.get("BUFFER_PROFILE_LI", "")
 GITHUB_TOKEN     = os.environ.get("GITHUB_TOKEN", "")
 ANTHROPIC_KEY    = os.environ.get("ANTHROPIC_API_KEY", "")
 UNSPLASH_KEY     = os.environ.get("UNSPLASH_KEY", "")
@@ -16,7 +17,6 @@ STORY_SUMMARY    = os.environ.get("STORY_SUMMARY", "")
 IMAGE_KEYWORD    = os.environ.get("IMAGE_KEYWORD", "finance technology")
 
 REPO             = "theledgerwire/tlw-content-engine"
-import time
 IMAGE_PATH       = f"cards/card_{int(time.time())}.png"
 RAW_URL          = f"https://raw.githubusercontent.com/{REPO}/main/{IMAGE_PATH}"
 
@@ -29,26 +29,36 @@ DGREY     = (100, 115, 148)
 FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 FONT_REG  = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
 
-print("=== TLW Card Generator v9 ===")
+print("=== TLW Card Generator v11 ===")
 print(f"Story: {STORY_TITLE[:60]}...")
 
 def call_claude(title, summary):
-    """Call Claude to generate post text and headlines."""
     if not ANTHROPIC_KEY:
         print("No Anthropic key — using title as fallback")
         return None
 
-    prompt = f"""You are The Ledger Wire content writer. AI and Finance news only.
+    prompt = f"""You are a strict content filter for The Ledger Wire — an AI and Finance newsletter.
 
 Story title: {title}
 Story summary: {summary}
 
-If this story is NOT about AI, banking, financial markets, Fed policy, fintech, or investment — reply with exactly one word: SKIP
+Reply SKIP if the story is primarily about ANY of these:
+- Geopolitics, war, military, Iran, Middle East, Russia, China politics
+- Food, consumer products, coffee, restaurants
+- Sports, entertainment, celebrities
+- General manufacturing or trade unless directly about AI or fintech
+
+Reply SKIP unless the story is DIRECTLY and PRIMARILY about:
+- Artificial intelligence in finance or banking
+- Federal Reserve, interest rates, inflation policy
+- Major bank earnings or AI strategy (JPMorgan, Goldman, BlackRock etc)
+- Fintech companies or cryptocurrency
+- Stock market moves caused specifically by AI or tech earnings
 
 If relevant, reply in this EXACT format with no extra text:
 TWEET: [tweet under 240 chars, lead with surprise, make it personal, end with dry wit, finish with → theledgerwire.com #AI #Finance]
-H1: [3-4 word bold headline]
-H2: [3-4 word gold subheadline]
+H1: [max 4 words, no asterisks, no punctuation]
+H2: [max 4 words, no asterisks, no punctuation]
 KEYWORD: [2-3 word Unsplash search term]"""
 
     try:
@@ -78,7 +88,6 @@ KEYWORD: [2-3 word Unsplash search term]"""
             print("Claude says SKIP — not relevant")
             return "SKIP"
 
-        # Parse structured response
         result = {}
         for line in text.split("\n"):
             if line.startswith("TWEET:"):
@@ -93,9 +102,9 @@ KEYWORD: [2-3 word Unsplash search term]"""
         if not result.get("tweet"):
             result["tweet"] = title
         if not result.get("h1"):
-            result["h1"] = "Breaking now."
+            result["h1"] = "Breaking Now"
         if not result.get("h2"):
-            result["h2"] = "Read the full story."
+            result["h2"] = "Read Full Story"
         if not result.get("keyword"):
             result["keyword"] = "finance technology"
 
@@ -151,18 +160,46 @@ def apply_gradient(img, start=0.30):
         gd.line([(0,y),(W,y)], fill=(4,8,20,a))
     return Image.alpha_composite(img.convert("RGBA"), grad).convert("RGB")
 
+def wrap_text(draw, text, font, max_width):
+    """Wrap text to fit within max_width, return list of lines."""
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        test = f"{current} {word}".strip()
+        w = draw.textbbox((0,0), test, font=font)[2]
+        if w <= max_width:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
 def generate_card(headline1, headline2, keyword):
     photo = get_unsplash_photo(keyword)
     if photo:
         img = apply_gradient(photo)
         print("Using Unsplash photo")
     else:
+        # Navy gradient fallback
         img = Image.new("RGB", (W, H), NAVY)
-        print("Using navy fallback")
+        draw_fb = ImageDraw.Draw(img)
+        for y in range(0, H):
+            t = y / H
+            r_val = int(4 + (20-4)*t)
+            g_val = int(8 + (30-8)*t)
+            b_val = int(20 + (60-20)*t)
+            draw_fb.line([(0,y),(W,y)], fill=(r_val, g_val, b_val))
+        print("Using navy gradient fallback")
 
     draw = ImageDraw.Draw(img)
     PAD = 52
+    MAX_TEXT_W = W - PAD*2
 
+    # Logo
     logo_f = ImageFont.truetype(FONT_BOLD, 19)
     logo_t = "THE LEDGER WIRE"
     lb = draw.textbbox((0,0), logo_t, font=logo_f)
@@ -171,24 +208,45 @@ def generate_card(headline1, headline2, keyword):
     draw.rectangle([(PAD, 59),(PAD+lw, 62)], fill=GOLD)
 
     h1_f  = ImageFont.truetype(FONT_BOLD, 72)
-    h2_f  = ImageFont.truetype(FONT_BOLD, 64)
+    h2_f  = ImageFont.truetype(FONT_BOLD, 60)
     src_f = ImageFont.truetype(FONT_REG, 21)
 
-    SAFE_BOT = H - 46 - 18
-    src_h = draw.textbbox((0,0), "theledgerwire.com", font=src_f)[3]
-    l2_h  = draw.textbbox((0,0), headline2, font=h2_f)[3]
-    l1_h  = draw.textbbox((0,0), headline1, font=h1_f)[3]
+    # Wrap headlines
+    h1_lines = wrap_text(draw, headline1, h1_f, MAX_TEXT_W)
+    h2_lines = wrap_text(draw, headline2, h2_f, MAX_TEXT_W)
 
+    # Calculate heights
+    h1_line_h = draw.textbbox((0,0), "Ag", font=h1_f)[3]
+    h2_line_h = draw.textbbox((0,0), "Ag", font=h2_f)[3]
+    src_h     = draw.textbbox((0,0), "theledgerwire.com", font=src_f)[3]
+
+    total_h1 = h1_line_h * len(h1_lines) + 4 * (len(h1_lines)-1)
+    total_h2 = h2_line_h * len(h2_lines) + 4 * (len(h2_lines)-1)
+
+    SAFE_BOT = H - 46 - 18
     src_y  = SAFE_BOT - src_h
-    l2_y   = src_y - 20 - l2_h
-    l1_y   = l2_y - 10 - l1_h
+    l2_y   = src_y - 20 - total_h2
+    l1_y   = l2_y - 10 - total_h1
     rule_y = l1_y - 18
 
+    # Gold rule
     draw.rectangle([(PAD, rule_y),(PAD+90, rule_y+4)], fill=GOLD)
-    draw.text((PAD, l1_y), headline1, font=h1_f, fill=WHITE)
-    draw.text((PAD, l2_y), headline2, font=h2_f, fill=GOLD)
+
+    # Draw H1 lines
+    y = l1_y
+    for line in h1_lines:
+        draw.text((PAD, y), line, font=h1_f, fill=WHITE)
+        y += h1_line_h + 4
+
+    # Draw H2 lines
+    y = l2_y
+    for line in h2_lines:
+        draw.text((PAD, y), line, font=h2_f, fill=GOLD)
+        y += h2_line_h + 4
+
     draw.text((PAD, src_y), "theledgerwire.com", font=src_f, fill=DGREY)
 
+    # Footer
     draw.rectangle([(0, H-46),(W, H)], fill=NAVY)
     draw.rectangle([(0, H-48),(W, H-46)], fill=GOLD)
     url_f = ImageFont.truetype(FONT_REG, 19)
@@ -213,7 +271,7 @@ def push_to_github(image_path, token, repo, file_path):
         headers=headers
     )
     sha = get_r.json().get("sha") if get_r.status_code == 200 else None
-    payload = {"message": "Update card image", "content": content, "branch": "main"}
+    payload = {"message": "Add card image", "content": content, "branch": "main"}
     if sha:
         payload["sha"] = sha
     put_r = requests.put(
@@ -225,10 +283,9 @@ def push_to_github(image_path, token, repo, file_path):
     print(f"GitHub push status: {put_r.status_code}")
     return put_r.status_code in [200, 201]
 
-def post_to_buffer(post_text, image_url, channel_id, api_key):
-    print(f"Posting to Buffer via GraphQL...")
-    import time
-    time.sleep(5)
+def post_to_buffer(post_text, image_url, channel_id, api_key, platform=""):
+    print(f"Posting to Buffer {platform}...")
+    time.sleep(3)
     safe_text = post_text.replace('\\', '\\\\').replace('"', '\\"')
     query = '''mutation CreatePost {
       createPost(input: {
@@ -257,8 +314,8 @@ def post_to_buffer(post_text, image_url, channel_id, api_key):
         json={"query": query},
         timeout=30
     )
-    print(f"Buffer status: {r.status_code}")
-    print(f"Buffer response: {r.text[:400]}")
+    print(f"Buffer {platform} status: {r.status_code}")
+    print(f"Buffer {platform} response: {r.text[:200]}")
     return r.status_code == 200
 
 # ── MAIN ──────────────────────────────────────────────────────────
@@ -266,7 +323,6 @@ if not STORY_TITLE:
     print("No story title provided — exiting")
     exit(0)
 
-# Call Claude
 claude_result = call_claude(STORY_TITLE, STORY_SUMMARY)
 
 if claude_result == "SKIP" or claude_result is None:
@@ -274,8 +330,8 @@ if claude_result == "SKIP" or claude_result is None:
     exit(0)
 
 tweet_text  = claude_result.get("tweet", STORY_TITLE)
-headline1   = claude_result.get("h1", "Breaking news.").replace("**", "").replace("*", "").strip()
-headline2   = claude_result.get("h2", "Read the full story.").replace("**", "").replace("*", "").strip()
+headline1   = claude_result.get("h1", "Breaking Now").replace("**", "").replace("*", "").strip()
+headline2   = claude_result.get("h2", "Read Full Story").replace("**", "").replace("*", "").strip()
 img_keyword = claude_result.get("keyword", IMAGE_KEYWORD)
 
 print(f"Tweet: {tweet_text[:80]}...")
@@ -283,17 +339,21 @@ print(f"H1: {headline1}")
 print(f"H2: {headline2}")
 print(f"Keyword: {img_keyword}")
 
-# Generate card
 generate_card(headline1, headline2, img_keyword)
 
-# Push to GitHub and post to Buffer
-if BUFFER_API_KEY and BUFFER_PROFILE_X and GITHUB_TOKEN:
+if BUFFER_API_KEY and GITHUB_TOKEN:
     pushed = push_to_github("card.png", GITHUB_TOKEN, REPO, IMAGE_PATH)
     if pushed:
-        success = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY)
-        print("SUCCESS: Posted to Buffer with image!" if success else "FAILED: Buffer posting failed")
+        time.sleep(5)
+        if BUFFER_PROFILE_X:
+            success_x = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
+            print("X: SUCCESS" if success_x else "X: FAILED")
+        if BUFFER_PROFILE_LI:
+            time.sleep(3)
+            success_li = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
+            print("LinkedIn: SUCCESS" if success_li else "LinkedIn: FAILED")
     else:
         print("FAILED: GitHub push failed")
 else:
-    missing = [k for k, v in {"BUFFER_API_KEY": BUFFER_API_KEY, "BUFFER_PROFILE_X": BUFFER_PROFILE_X, "GITHUB_TOKEN": GITHUB_TOKEN}.items() if not v]
+    missing = [k for k, v in {"BUFFER_API_KEY": BUFFER_API_KEY, "GITHUB_TOKEN": GITHUB_TOKEN}.items() if not v]
     print(f"Missing credentials: {', '.join(missing)}")
