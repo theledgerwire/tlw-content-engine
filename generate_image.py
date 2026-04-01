@@ -52,24 +52,34 @@ def call_claude(title, summary):
 Story title: {title}
 Story summary: {summary}
 
-Reply SKIP if the story is primarily about ANY of these:
-- Geopolitics, war, military, Iran, Middle East, Russia, Ukraine — unless directly causing market moves
-- China politics or government — BUT keep China stories about AI, crypto, fintech, business, finance, technology
-- Robotaxis, autonomous vehicles, self-driving cars — UNLESS directly tied to stock price, earnings, or AI investment impact
-- Food, consumer products, coffee, restaurants, retail
-- Sports, entertainment, celebrities, social media drama
-- General manufacturing or supply chain — unless directly about AI automation or fintech disruption
-- Any story where the primary angle is NOT about money, investing, AI tools, or business/tech impact on finance professionals
+You have TWO tiers. Pick the best tier that fits:
 
-KEEP all stories about:
-- Chinese AI companies (Baidu AI, Alibaba Cloud, ByteDance, DeepSeek) and their technology or business impact
-- China crypto regulation or adoption
-- China fintech (Ant Group, WeChat Pay) and financial technology
-- Global AI investment, funding rounds, or valuations — regardless of country
-- Any tech company layoffs, earnings, or AI strategy — regardless of country
-- Trade tariffs, trade wars, sanctions — when they directly impact stock markets, tech companies, or finance
-- US-China trade tensions that affect tech stocks, semiconductors, or financial markets
-- Global supply chain disruptions that move commodity prices or equity markets
+TIER 1 — PREFERRED (AI + Finance + Tech):
+- Artificial intelligence in finance, banking, or investment
+- Federal Reserve, interest rates, inflation, monetary policy
+- Major bank or fintech earnings, layoffs, or AI strategy
+- Crypto, blockchain, digital assets, stablecoins
+- Tech company AI investments, valuations, IPOs, funding rounds
+- Chinese AI companies (DeepSeek, Alibaba Cloud, ByteDance) — business/tech angle
+- Trade tariffs or sanctions that directly move stock markets or tech sectors
+- Global supply chain disruptions affecting commodity prices or equities
+
+TIER 2 — FALLBACK (General Business/Economy):
+- Major company earnings, mergers, acquisitions, or layoffs — any sector
+- Stock market moves, economic data (GDP, jobs, inflation)
+- Central bank decisions anywhere in the world
+- Business strategy, executive changes at Fortune 500 companies
+- Real estate, commodities, energy markets
+- Global trade and economic policy with market impact
+- Startup funding rounds over $50M
+- Any story a North American finance professional would find useful
+
+Reply SKIP ONLY if the story is clearly irrelevant to business or finance:
+- Pure geopolitics or war with no market angle
+- Sports, entertainment, celebrities
+- Food, restaurants, consumer lifestyle
+- Local crime or accidents
+- Social media drama with no business impact
 
 Reply SKIP unless the story is DIRECTLY and PRIMARILY about:
 - Artificial intelligence in finance or banking
@@ -80,8 +90,9 @@ Reply SKIP unless the story is DIRECTLY and PRIMARILY about:
 
 If relevant, reply in this EXACT format with no extra text:
 
+TIER: [1 or 2]
 TWEET: [Morning Brew style — STRICTLY under 220 chars. Rule: NEVER explain the full story. Create a curiosity gap — give ONE shocking hook that makes them NEED to tap to find out more. Structure: shocking statement or stat → one sentence that raises more questions than it answers → → theledgerwire.com #AI #Finance. Examples of good style: "A bank just replaced 700 people with one AI. Your department is next. → theledgerwire.com #AI #Finance" / "The Fed blinked. Your mortgage rate didn't. Here's why that matters. → theledgerwire.com #AI #Finance" / "Goldman just made it official. AI is doing the job you trained 4 years for. → theledgerwire.com #AI #Finance". NEVER write: "X company did Y and Z happened" — that kills the click.]
-LINKEDIN: [Morning Brew style for professionals. Open with ONE punchy statement that stops the scroll — a stat, a quote, or a provocative claim. Then 2-3 short paragraphs that build the story but always leave the "so what for ME" partially unanswered — make them want to read the full briefing. End with a direct question that triggers replies. No link — goes in first comment. NEVER write a press release. Write like a smart colleague sharing intel over coffee.]
+LINKEDIN: [Morning Brew style for professionals. Open with ONE punchy statement that stops the scroll — a stat, a quote, or a provocative claim. Then 2-3 short paragraphs that build the story but always leave the "so what for ME" partially unanswered. End with a direct question that triggers replies and drives engagement. NEVER say "read the full story" or "link in bio" — the link is added automatically. NEVER write a press release. Write like a smart colleague sharing intel over coffee. Do NOT include any URLs.]
 H1: [1-3 words ONLY. The shocking STAT or NUMBER — big and visual. This is the first thing eyes land on. Must be a number, dollar amount, or ultra-short gut-shot. Use abbreviations always — never spell out. No asterisks. GOOD: "$60B." / "30,000 jobs." / "$114 oil." / "4% up." / "Week 5." BAD: "$60 Billion" / "Thirty thousand jobs" — too long, kills the punch.]
 H2: [2-4 words ONLY. Company name + what happened — gives context to H1. This is the "who" and "what". No asterisks. GOOD: "Anthropic. Going public." / "Oracle. 6am email." / "Brent crude. Iran war." / "Fed. No cuts." / "Goldman. Claude deployed." BAD: "IPO season just changed" — too vague, no company.]
 HOOK: [2-5 words. The bottom closer — the twist or "so what" that creates the curiosity gap and makes them tap to read. This goes at the very bottom above the footer. No asterisks. GOOD: "No ticker. Yet." / "Stock went up 4%." / "Your job is next." / "Rate cuts are dead." / "Read before markets open." BAD: "This is very interesting" — no tension.]
@@ -121,7 +132,12 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
         current_val = []
 
         for line in text.split("\n"):
-            if line.startswith("TWEET:"):
+            if line.startswith("TIER:"):
+                if current_key:
+                    result[current_key] = "\n".join(current_val).strip()
+                current_key = "tier"
+                current_val = [line.replace("TIER:", "").strip()]
+            elif line.startswith("TWEET:"):
                 if current_key:
                     result[current_key] = "\n".join(current_val).strip()
                 current_key = "tweet"
@@ -184,6 +200,7 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
         result.setdefault("h2", "Read Full Story")
         result.setdefault("lines", "")
         result.setdefault("hook", "")
+        result.setdefault("tier", "1")
         result.setdefault("keyword", "finance technology")
 
         # Strip asterisks from headlines
@@ -619,6 +636,8 @@ img_keyword   = claude_result.get("keyword", IMAGE_KEYWORD)
 lines_raw     = claude_result.get("lines", "")
 support_lines = [l.strip() for l in lines_raw.split("|") if l.strip()][:3]
 hook_text     = claude_result.get("hook", "").replace("**","").replace("*","").strip()
+story_tier    = claude_result.get("tier", "1").strip()
+print(f"Story tier: {story_tier} ({'AI/Finance/Tech' if story_tier == '1' else 'General Business'})")
 
 # Final tweet char count check
 final_count = x_char_count(tweet_text)
@@ -640,8 +659,8 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
 
         if BUFFER_PROFILE_LI:
             time.sleep(3)
-            # LinkedIn gets full long-form text — link goes in first comment via Buffer
-            li_post = f"{linkedin_text}\n\n(Full story: theledgerwire.com)"
+            # LinkedIn — link drives to newsletter signup, not a specific story
+            li_post = f"{linkedin_text}\n\n(Get this decoded every Wednesday, free → theledgerwire.com)"
             success_li = post_to_buffer(li_post, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
             print("LinkedIn: SUCCESS" if success_li else "LinkedIn: FAILED")
     else:
