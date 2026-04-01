@@ -71,6 +71,7 @@ TWEET: [Morning Brew style — STRICTLY under 220 chars. Rule: NEVER explain the
 LINKEDIN: [Morning Brew style for professionals. Open with ONE punchy statement that stops the scroll — a stat, a quote, or a provocative claim. Then 2-3 short paragraphs that build the story but always leave the "so what for ME" partially unanswered — make them want to read the full briefing. End with a direct question that triggers replies. No link — goes in first comment. NEVER write a press release. Write like a smart colleague sharing intel over coffee.]
 H1: [2-4 words MAXIMUM. This is BIG text on a social image card — it must work as a visual PUNCH, not a sentence. Think billboard, not headline. Use a STAT, a NUMBER, or a 2-3 word gut-shot. Never a full sentence. Never corporate words. No asterisks. BAD examples: "Your next trade is AI" / "Markets are shifting fast" — too long, too sentence-y. GOOD examples: "$60B." / "AI goes public." / "30,000 jobs." / "Powell blinked." / "AI ate banking." / "The Fed said no." / "Your job. Gone." — short, visual, shocking, stops the scroll.]
 H2: [2-4 words MAXIMUM. The twist line — adds the "so what" or the curiosity gap. Must pair with H1 to create a 1-2 punch. Never a full sentence. No asterisks. BAD: "IPO season just changed" — too long. GOOD: "No ticker. Yet." / "6am email." / "Price your position." / "Goldman made it official." / "Your mortgage feels it." / "Read this first." — punchy, creates tension, makes them tap.]
+LINES: [Exactly 3 short lines of supporting context — each line max 8 words, white text, fills the card. These sit between the headline and the hook. Give the key facts that make the headline make sense. Format: one line per row, separated by | character. Example: "Anthropic valuing at $60B | OpenAI already at $25B revenue | Both heading to public markets"]
 KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examples: wall street, office technology, trading floor, data center, bank building]"""
 
     try:
@@ -126,6 +127,11 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
                     result[current_key] = "\n".join(current_val).strip()
                 current_key = "h2"
                 current_val = [line.replace("H2:", "").strip()]
+            elif line.startswith("LINES:"):
+                if current_key:
+                    result[current_key] = "\n".join(current_val).strip()
+                current_key = "lines"
+                current_val = [line.replace("LINES:", "").strip()]
             elif line.startswith("KEYWORD:"):
                 if current_key:
                     result[current_key] = "\n".join(current_val).strip()
@@ -157,6 +163,7 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
         result.setdefault("linkedin", title)
         result.setdefault("h1", "Breaking Now")
         result.setdefault("h2", "Read Full Story")
+        result.setdefault("lines", "")
         result.setdefault("keyword", "finance technology")
 
         # Strip asterisks from headlines
@@ -176,9 +183,20 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
 
 
 # ── UNSPLASH ──────────────────────────────────────────────────────
-def get_unsplash_photo(keyword):
-    if not UNSPLASH_KEY:
-        return None
+# Reliable fallback keywords — tested to work on Unsplash
+UNSPLASH_FALLBACKS = [
+    "wall street",
+    "trading floor",
+    "office technology",
+    "bank building",
+    "data center",
+    "financial district",
+    "stock exchange",
+    "business meeting",
+]
+
+def fetch_unsplash(keyword):
+    """Try a single keyword — return photo or None."""
     try:
         r = requests.get(
             "https://api.unsplash.com/photos/random",
@@ -186,27 +204,39 @@ def get_unsplash_photo(keyword):
             headers={"Authorization": f"Client-ID {UNSPLASH_KEY}"},
             timeout=15
         )
-        print(f"Unsplash status: {r.status_code}")
+        print(f"Unsplash [{keyword}]: {r.status_code}")
         if r.status_code != 200:
             return None
         data = r.json()
-        img_url = data["urls"]["regular"]
+        img_url  = data["urls"]["regular"]
         img_data = requests.get(img_url, timeout=15).content
         from PIL import ImageEnhance
         photo = Image.open(BytesIO(img_data)).convert("RGB")
         pw, ph = photo.size
-        scale = max(W / pw, H / ph)
+        scale  = max(W / pw, H / ph)
         nw, nh = int(pw * scale), int(ph * scale)
-        photo = photo.resize((nw, nh), Image.LANCZOS)
-        left = (nw - W) // 2
-        top = (nh - H) // 2
-        photo = photo.crop((left, top, left + W, top + H))
-        photo = ImageEnhance.Color(photo).enhance(0.78)
-        photo = ImageEnhance.Brightness(photo).enhance(0.65)
+        photo  = photo.resize((nw, nh), Image.LANCZOS)
+        left   = (nw - W) // 2
+        top    = (nh - H) // 2
+        photo  = photo.crop((left, top, left + W, top + H))
+        photo  = ImageEnhance.Color(photo).enhance(0.78)
+        photo  = ImageEnhance.Brightness(photo).enhance(0.65)
         return photo
     except Exception as e:
-        print(f"Unsplash exception: {e}")
+        print(f"Unsplash exception [{keyword}]: {e}")
         return None
+
+def get_unsplash_photo(keyword):
+    """Try Claude keyword first, then fallbacks until one works."""
+    if not UNSPLASH_KEY:
+        return None
+    for kw in [keyword] + UNSPLASH_FALLBACKS:
+        photo = fetch_unsplash(kw)
+        if photo:
+            print(f"Unsplash success with keyword: {kw}")
+            return photo
+    print("All Unsplash keywords failed — using navy fallback")
+    return None
 
 
 def apply_gradient(img, start=0.30):
@@ -312,7 +342,7 @@ def card_with_photo(img, headline1, headline2):
     print("Card saved (photo mode)")
 
 
-def card_no_photo(headline1, headline2):
+def card_no_photo(headline1, headline2, support_lines=None):
     """DESIGN MODE 2 — Navy grid fallback. Like starcloud."""
     img  = Image.new("RGB", (W, H), NAVY)
     draw = ImageDraw.Draw(img)
@@ -372,6 +402,19 @@ def card_no_photo(headline1, headline2):
     # Gold divider
     y += 20
     draw.rectangle([(PAD, y), (PAD + 200, y + 5)], fill=GOLD)
+    y += 32
+
+    # Supporting bullet lines
+    if support_lines:
+        line_f  = ImageFont.truetype(FONT_REG, 28)
+        line_lh = draw.textbbox((0, 0), "Ag", font=line_f)[3]
+        for line_text in support_lines:
+            if y + line_lh > H - 72 - 80:
+                break
+            # Gold left bar per line
+            draw.rectangle([(PAD, y + 4), (PAD + 4, y + line_lh - 4)], fill=GOLD)
+            draw.text((PAD + 18, y), line_text.strip(), font=line_f, fill=WHITE)
+            y += line_lh + 16
 
     # Source
     src_f = ImageFont.truetype(FONT_REG, 22)
@@ -382,7 +425,7 @@ def card_no_photo(headline1, headline2):
     print("Card saved (fallback mode)")
 
 
-def generate_card(headline1, headline2, keyword):
+def generate_card(headline1, headline2, keyword, support_lines=None):
     photo = get_unsplash_photo(keyword)
     if photo:
         img = apply_gradient(photo)
@@ -390,7 +433,7 @@ def generate_card(headline1, headline2, keyword):
         card_with_photo(img, headline1, headline2)
     else:
         print("No photo → navy stat card design")
-        card_no_photo(headline1, headline2)
+        card_no_photo(headline1, headline2, support_lines)
     return "card.png"
 
 
@@ -507,6 +550,8 @@ linkedin_text = claude_result.get("linkedin", STORY_TITLE)
 headline1     = claude_result.get("h1", "Breaking Now")
 headline2     = claude_result.get("h2", "Read Full Story")
 img_keyword   = claude_result.get("keyword", IMAGE_KEYWORD)
+lines_raw     = claude_result.get("lines", "")
+support_lines = [l.strip() for l in lines_raw.split("|") if l.strip()][:3]
 
 # Final tweet char count check
 final_count = x_char_count(tweet_text)
@@ -515,7 +560,7 @@ if final_count > 280:
     print(f"ERROR: Tweet still over 280 chars ({final_count}) — exiting to avoid bad post")
     exit(1)
 
-generate_card(headline1, headline2, img_keyword)
+generate_card(headline1, headline2, img_keyword, support_lines)
 
 if BUFFER_API_KEY and GITHUB_TOKEN:
     pushed = push_to_github("card.png", GITHUB_TOKEN, REPO, IMAGE_PATH)
