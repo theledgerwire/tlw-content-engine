@@ -69,8 +69,9 @@ If relevant, reply in this EXACT format with no extra text:
 
 TWEET: [Morning Brew style — STRICTLY under 220 chars. Rule: NEVER explain the full story. Create a curiosity gap — give ONE shocking hook that makes them NEED to tap to find out more. Structure: shocking statement or stat → one sentence that raises more questions than it answers → → theledgerwire.com #AI #Finance. Examples of good style: "A bank just replaced 700 people with one AI. Your department is next. → theledgerwire.com #AI #Finance" / "The Fed blinked. Your mortgage rate didn't. Here's why that matters. → theledgerwire.com #AI #Finance" / "Goldman just made it official. AI is doing the job you trained 4 years for. → theledgerwire.com #AI #Finance". NEVER write: "X company did Y and Z happened" — that kills the click.]
 LINKEDIN: [Morning Brew style for professionals. Open with ONE punchy statement that stops the scroll — a stat, a quote, or a provocative claim. Then 2-3 short paragraphs that build the story but always leave the "so what for ME" partially unanswered — make them want to read the full briefing. End with a direct question that triggers replies. No link — goes in first comment. NEVER write a press release. Write like a smart colleague sharing intel over coffee.]
-H1: [2-4 words MAXIMUM. This is BIG text on a social image card — it must work as a visual PUNCH, not a sentence. Think billboard, not headline. Use a STAT, a NUMBER, or a 2-3 word gut-shot. Never a full sentence. Never corporate words. No asterisks. BAD examples: "Your next trade is AI" / "Markets are shifting fast" — too long, too sentence-y. GOOD examples: "$60B." / "AI goes public." / "30,000 jobs." / "Powell blinked." / "AI ate banking." / "The Fed said no." / "Your job. Gone." — short, visual, shocking, stops the scroll.]
-H2: [2-4 words MAXIMUM. The twist line — adds the "so what" or the curiosity gap. Must pair with H1 to create a 1-2 punch. Never a full sentence. No asterisks. BAD: "IPO season just changed" — too long. GOOD: "No ticker. Yet." / "6am email." / "Price your position." / "Goldman made it official." / "Your mortgage feels it." / "Read this first." — punchy, creates tension, makes them tap.]
+H1: [1-3 words ONLY. The shocking STAT or NUMBER — big and visual. This is the first thing eyes land on. Must be a number, dollar amount, or ultra-short gut-shot. Use abbreviations always — never spell out. No asterisks. GOOD: "$60B." / "30,000 jobs." / "$114 oil." / "4% up." / "Week 5." BAD: "$60 Billion" / "Thirty thousand jobs" — too long, kills the punch.]
+H2: [2-4 words ONLY. Company name + what happened — gives context to H1. This is the "who" and "what". No asterisks. GOOD: "Anthropic. Going public." / "Oracle. 6am email." / "Brent crude. Iran war." / "Fed. No cuts." / "Goldman. Claude deployed." BAD: "IPO season just changed" — too vague, no company.]
+HOOK: [2-5 words. The bottom closer — the twist or "so what" that creates the curiosity gap and makes them tap to read. This goes at the very bottom above the footer. No asterisks. GOOD: "No ticker. Yet." / "Stock went up 4%." / "Your job is next." / "Rate cuts are dead." / "Read before markets open." BAD: "This is very interesting" — no tension.]
 LINES: [Exactly 3 short lines of supporting context — each line max 8 words, white text, fills the card. These sit between the headline and the hook. Give the key facts that make the headline make sense. Format: one line per row, separated by | character. Example: "Anthropic valuing at $60B | OpenAI already at $25B revenue | Both heading to public markets"]
 KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examples: wall street, office technology, trading floor, data center, bank building]"""
 
@@ -132,6 +133,11 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
                     result[current_key] = "\n".join(current_val).strip()
                 current_key = "lines"
                 current_val = [line.replace("LINES:", "").strip()]
+            elif line.startswith("HOOK:"):
+                if current_key:
+                    result[current_key] = "\n".join(current_val).strip()
+                current_key = "hook"
+                current_val = [line.replace("HOOK:", "").strip()]
             elif line.startswith("KEYWORD:"):
                 if current_key:
                     result[current_key] = "\n".join(current_val).strip()
@@ -164,6 +170,7 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
         result.setdefault("h1", "Breaking Now")
         result.setdefault("h2", "Read Full Story")
         result.setdefault("lines", "")
+        result.setdefault("hook", "")
         result.setdefault("keyword", "finance technology")
 
         # Strip asterisks from headlines
@@ -183,16 +190,16 @@ KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examp
 
 
 # ── UNSPLASH ──────────────────────────────────────────────────────
-# Reliable fallback keywords — tested to work on Unsplash
+# Reliable fallback keywords — concrete, specific, tested on Unsplash
 UNSPLASH_FALLBACKS = [
-    "wall street",
-    "trading floor",
-    "office technology",
-    "bank building",
-    "data center",
-    "financial district",
-    "stock exchange",
-    "business meeting",
+    "stock market screen",
+    "trading screens",
+    "skyscraper glass",
+    "corporate office interior",
+    "server data center",
+    "city skyline night",
+    "bank vault",
+    "financial chart",
 ]
 
 def fetch_unsplash(keyword):
@@ -289,7 +296,7 @@ def draw_footer(draw):
     draw.text((W - PAD - uw, foot_y), url_t, font=tags_f, fill=NAVY)
 
 
-def card_with_photo(img, headline1, headline2):
+def card_with_photo(img, headline1, headline2, hook=""):
     """DESIGN MODE 1 — Full bleed photo. Like oracle-v1."""
     draw      = ImageDraw.Draw(img)
     PAD       = 56
@@ -336,13 +343,17 @@ def card_with_photo(img, headline1, headline2):
         draw.text((PAD, y), line, font=h2_f, fill=GOLD)
         y += h2_lh + 4
 
+    # Hook line (white) + source below it
+    if hook:
+        hook_f = ImageFont.truetype(FONT_BOLD, 34)
+        draw.text((PAD, src_y - 44), hook, font=hook_f, fill=WHITE)
     draw.text((PAD, src_y), "theledgerwire.com", font=src_f, fill=DGREY)
     draw_footer(draw)
     img.save("card.png", "PNG")
     print("Card saved (photo mode)")
 
 
-def card_no_photo(headline1, headline2, support_lines=None):
+def card_no_photo(headline1, headline2, support_lines=None, hook=""):
     """DESIGN MODE 2 — Navy grid fallback. Like starcloud."""
     img  = Image.new("RGB", (W, H), NAVY)
     draw = ImageDraw.Draw(img)
@@ -416,6 +427,21 @@ def card_no_photo(headline1, headline2, support_lines=None):
             draw.text((PAD + 18, y), line_text.strip(), font=line_f, fill=WHITE)
             y += line_lh + 16
 
+    # Hook line at bottom (white + gold)
+    hook_y = H - 72 - 110
+    if hook:
+        hook_parts = hook.split(".")
+        hook_f  = ImageFont.truetype(FONT_BOLD, 48)
+        hook_lh = draw.textbbox((0, 0), "Ag", font=hook_f)[3]
+        hk_y = hook_y
+        for part in hook_parts:
+            part = part.strip()
+            if not part:
+                continue
+            col = GOLD if hook_parts.index(part) % 2 == 1 else WHITE
+            draw.text((PAD, hk_y), part + ("." if not part.endswith(".") else ""), font=hook_f, fill=col)
+            hk_y += hook_lh + 4
+
     # Source
     src_f = ImageFont.truetype(FONT_REG, 22)
     draw.text((PAD, H - 72 - 36), "theledgerwire.com", font=src_f, fill=DGREY)
@@ -425,15 +451,15 @@ def card_no_photo(headline1, headline2, support_lines=None):
     print("Card saved (fallback mode)")
 
 
-def generate_card(headline1, headline2, keyword, support_lines=None):
+def generate_card(headline1, headline2, keyword, support_lines=None, hook=""):
     photo = get_unsplash_photo(keyword)
     if photo:
         img = apply_gradient(photo)
         print("Photo found → photo card design")
-        card_with_photo(img, headline1, headline2)
+        card_with_photo(img, headline1, headline2, hook)
     else:
         print("No photo → navy stat card design")
-        card_no_photo(headline1, headline2, support_lines)
+        card_no_photo(headline1, headline2, support_lines, hook)
     return "card.png"
 
 
@@ -552,6 +578,7 @@ headline2     = claude_result.get("h2", "Read Full Story")
 img_keyword   = claude_result.get("keyword", IMAGE_KEYWORD)
 lines_raw     = claude_result.get("lines", "")
 support_lines = [l.strip() for l in lines_raw.split("|") if l.strip()][:3]
+hook_text     = claude_result.get("hook", "").replace("**","").replace("*","").strip()
 
 # Final tweet char count check
 final_count = x_char_count(tweet_text)
@@ -560,7 +587,7 @@ if final_count > 280:
     print(f"ERROR: Tweet still over 280 chars ({final_count}) — exiting to avoid bad post")
     exit(1)
 
-generate_card(headline1, headline2, img_keyword, support_lines)
+generate_card(headline1, headline2, img_keyword, support_lines, hook_text)
 
 if BUFFER_API_KEY and GITHUB_TOKEN:
     pushed = push_to_github("card.png", GITHUB_TOKEN, REPO, IMAGE_PATH)
