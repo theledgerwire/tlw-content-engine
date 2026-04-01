@@ -56,7 +56,7 @@ Reply SKIP unless the story is DIRECTLY and PRIMARILY about:
 - Stock market moves caused specifically by AI or tech earnings
 
 If relevant, reply in this EXACT format with no extra text:
-TWEET: [tweet under 240 chars, lead with surprise, make it personal, end with dry wit, finish with → theledgerwire.com #AI #Finance]
+TWEET: [tweet STRICTLY under 220 chars including spaces, lead with surprise, make it personal, end with dry wit, finish with → theledgerwire.com #AI #Finance]
 H1: [max 4 words, no asterisks, no punctuation]
 H2: [max 4 words, no asterisks, no punctuation]
 KEYWORD: [2-3 word Unsplash search term]"""
@@ -316,6 +316,14 @@ def post_to_buffer(post_text, image_url, channel_id, api_key, platform=""):
     )
     print(f"Buffer {platform} status: {r.status_code}")
     print(f"Buffer {platform} response: {r.text[:200]}")
+    response_data = r.json()
+    if "errors" in response_data:
+        print(f"Buffer GraphQL errors: {response_data['errors']}")
+        return False
+    post_data = response_data.get("data", {}).get("createPost", {})
+    if "message" in post_data and "post" not in post_data:
+        print(f"Buffer error message: {post_data['message']}")
+        return False
     return r.status_code == 200
 
 # ── MAIN ──────────────────────────────────────────────────────────
