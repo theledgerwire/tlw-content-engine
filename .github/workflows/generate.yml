@@ -38,6 +38,7 @@ jobs:
         env:
           BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
           BUFFER_PROFILE_X: ${{ secrets.BUFFER_PROFILE_X }}
+          BUFFER_PROFILE_LI: ${{ secrets.BUFFER_PROFILE_LI }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
