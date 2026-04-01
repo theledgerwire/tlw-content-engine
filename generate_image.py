@@ -67,11 +67,11 @@ Reply SKIP unless the story is DIRECTLY and PRIMARILY about:
 
 If relevant, reply in this EXACT format with no extra text:
 
-TWEET: [tweet STRICTLY under 220 chars, lead with surprise, make it personal, end with dry wit, finish with → theledgerwire.com #AI #Finance — keep total under 220 so X URL expansion stays under 280]
-LINKEDIN: [3-5 short paragraphs, professional but direct, expand the story for finance professionals, explain why it matters for their career or portfolio, end with a question to drive engagement — no link, link goes in first comment]
-H1: [3-4 words, gut punch headline, write like texting a smart friend, use "you" or action words, never corporate language, no asterisks. Examples: "Your banker is AI." / "Powell said no." / "AI ate banking."]
-H2: [3-4 words, punchy follow-up that adds twist or "so what", creates curiosity, no asterisks. Examples: "Goldman made it official." / "Your mortgage feels it." / "Here's the bill."]
-KEYWORD: [2-3 word Unsplash search term]"""
+TWEET: [Morning Brew style — STRICTLY under 220 chars. Rule: NEVER explain the full story. Create a curiosity gap — give ONE shocking hook that makes them NEED to tap to find out more. Structure: shocking statement or stat → one sentence that raises more questions than it answers → → theledgerwire.com #AI #Finance. Examples of good style: "A bank just replaced 700 people with one AI. Your department is next. → theledgerwire.com #AI #Finance" / "The Fed blinked. Your mortgage rate didn't. Here's why that matters. → theledgerwire.com #AI #Finance" / "Goldman just made it official. AI is doing the job you trained 4 years for. → theledgerwire.com #AI #Finance". NEVER write: "X company did Y and Z happened" — that kills the click.]
+LINKEDIN: [Morning Brew style for professionals. Open with ONE punchy statement that stops the scroll — a stat, a quote, or a provocative claim. Then 2-3 short paragraphs that build the story but always leave the "so what for ME" partially unanswered — make them want to read the full briefing. End with a direct question that triggers replies. No link — goes in first comment. NEVER write a press release. Write like a smart colleague sharing intel over coffee.]
+H1: [2-4 words MAXIMUM. This is BIG text on a social image card — it must work as a visual PUNCH, not a sentence. Think billboard, not headline. Use a STAT, a NUMBER, or a 2-3 word gut-shot. Never a full sentence. Never corporate words. No asterisks. BAD examples: "Your next trade is AI" / "Markets are shifting fast" — too long, too sentence-y. GOOD examples: "$60B." / "AI goes public." / "30,000 jobs." / "Powell blinked." / "AI ate banking." / "The Fed said no." / "Your job. Gone." — short, visual, shocking, stops the scroll.]
+H2: [2-4 words MAXIMUM. The twist line — adds the "so what" or the curiosity gap. Must pair with H1 to create a 1-2 punch. Never a full sentence. No asterisks. BAD: "IPO season just changed" — too long. GOOD: "No ticker. Yet." / "6am email." / "Price your position." / "Goldman made it official." / "Your mortgage feels it." / "Read this first." — punchy, creates tension, makes them tap.]
+KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examples: wall street, office technology, trading floor, data center, bank building]"""
 
     try:
         r = requests.post(
