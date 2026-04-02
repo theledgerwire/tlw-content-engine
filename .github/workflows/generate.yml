@@ -20,13 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
@@ -42,17 +40,10 @@ jobs:
           BUFFER_PROFILE_X: ${{ secrets.BUFFER_PROFILE_X }}
           BUFFER_PROFILE_LI: ${{ secrets.BUFFER_PROFILE_LI }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
+          PEXELS_KEY: ${{ secrets.PEXELS_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           STORY_TITLE: ${{ github.event.inputs.story_title }}
           STORY_SUMMARY: ${{ github.event.inputs.story_summary }}
           IMAGE_KEYWORD: ${{ github.event.inputs.image_keyword }}
         run: python generate_image.py
-
-      - name: Upload card as artifact (debug)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: card-output
-          path: card.png
-          retention-days: 3
