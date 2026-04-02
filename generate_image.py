@@ -513,51 +513,33 @@ def post_to_buffer(post_text, image_url, channel_id, api_key,
     print(f"Posting to Buffer {platform}...")
     time.sleep(3)
 
-    # Use JSON variables instead of string interpolation
-    # This completely avoids all escaping issues with newlines/quotes
-    variables = {
-        "text":      post_text,
-        "channelId": channel_id.strip(),
-        "imageUrl":  image_url
-    }
+    # Escape text for GraphQL string — handle newlines and quotes
+    def esc(s):
+        return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
 
-    if first_comment:
-        query = """
-mutation CreatePost($text: String!, $channelId: String!, $imageUrl: String!, $comment: String!) {
+    safe_text = esc(post_text)
+    cid       = channel_id.strip()
+
+    # Note: firstComment is NOT supported by Buffer API — removed
+    query = '''mutation CreatePost {
   createPost(input: {
-    text: $text,
-    channelId: $channelId,
+    text: "%s",
+    channelId: "%s",
     schedulingType: automatic,
     mode: addToQueue,
-    firstComment: { text: $comment },
-    assets: { images: [{ url: $imageUrl }] }
+    assets: { images: [{ url: "%s" }] }
   }) {
     ... on PostActionSuccess { post { id text } }
     ... on MutationError { message }
   }
-}"""
-        variables["comment"] = first_comment
-    else:
-        query = """
-mutation CreatePost($text: String!, $channelId: String!, $imageUrl: String!) {
-  createPost(input: {
-    text: $text,
-    channelId: $channelId,
-    schedulingType: automatic,
-    mode: addToQueue,
-    assets: { images: [{ url: $imageUrl }] }
-  }) {
-    ... on PostActionSuccess { post { id text } }
-    ... on MutationError { message }
-  }
-}"""
+}''' % (safe_text, cid, image_url)
 
     for attempt in range(retries+1):
         try:
             r = requests.post(
                 "https://api.buffer.com",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"query": query, "variables": variables},
+                json={"query": query},
                 timeout=30
             )
             print(f"Buffer {platform}: {r.status_code} — {r.text[:300]}")
