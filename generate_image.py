@@ -80,7 +80,24 @@ H1: [1-3 words MAX, shocking stat or number, abbreviations only, no asterisks. G
 H2: [2-4 words, company + what happened. GOOD: Anthropic. Going public. / Oracle. 6am email.]
 HOOK: [2-5 words, bottom closer, curiosity gap. GOOD: No ticker. Yet. / Stock went up 4%.]
 LINES: [3 short facts max 8 words each separated by | character]
-KEYWORD: [3-5 word SPECIFIC Unsplash search term that visually matches the story. GOOD: "semiconductor chip factory clean room" / "courtroom legal trial gavel" / "satellite orbit earth space" / "federal reserve building washington" / "korean stock exchange trading". BAD: "finance technology" / "business" / "stock market" — too generic]"""
+KEYWORD: [3-5 word SPECIFIC photo search term. Match the visual to the story subject exactly using these rules:
+
+- AI / tech company story → "computer code dark screen" / "server room blue lights" / "laptop programming code"
+- Code leak / hack / cybersecurity → "computer hacker dark screen" / "keyboard code programming"
+- SEC / legal / trial / lawsuit → "courthouse steps washington" / "federal building columns" / "legal gavel courtroom"
+- Fed / interest rates / inflation → "federal reserve building washington" / "us dollar bills close up"
+- Korean / South Korea story → "south korea seoul skyline" / "korean flag" / "seoul city night"
+- China / Chinese company story → "shanghai skyline night" / "china flag" / "beijing city"
+- Japan story → "tokyo skyline night" / "japan flag mount fuji"
+- Crypto / Bitcoin → "bitcoin gold coin" / "cryptocurrency digital"
+- Oil / energy → "oil pipeline" / "oil refinery night" / "crude oil barrels"
+- Space / NASA / rocket → "rocket launch nasa" / "astronaut space earth"
+- Layoffs / jobs → "empty office chairs" / "businessman walking away"
+- IPO / stock listing → "new york stock exchange building" / "wall street bull statue"
+- Earnings / profit → "stock market chart green" / "trading screen numbers"
+- Amazon → "amazon warehouse" / "amazon delivery boxes"
+- Satellite / telecom → "satellite dish space" / "orbit earth satellite"
+NEVER use: "finance technology" / "business" / "woman laptop" / "person working" — too generic]"""
 
     try:
         r = requests.post(
