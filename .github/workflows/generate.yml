@@ -5,26 +5,37 @@ on:
     inputs:
       story_title:
         description: 'Story title from RSS'
-        required: true
+        required: false
+        default: ''
       story_summary:
         description: 'Story summary from RSS'
         required: false
         default: ''
       image_keyword:
-        description: 'Fallback image keyword'
+        description: 'Image search keyword'
         required: false
         default: 'finance technology'
+      card_type:
+        description: 'Card type: news | weekly_tuesday | weekly_friday'
+        required: false
+        default: 'news'
+      weekly_headlines:
+        description: 'Pipe-separated headlines for weekly recap cards'
+        required: false
+        default: ''
 
 jobs:
   generate:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -46,4 +57,14 @@ jobs:
           STORY_TITLE: ${{ github.event.inputs.story_title }}
           STORY_SUMMARY: ${{ github.event.inputs.story_summary }}
           IMAGE_KEYWORD: ${{ github.event.inputs.image_keyword }}
+          CARD_TYPE: ${{ github.event.inputs.card_type }}
+          WEEKLY_HEADLINES: ${{ github.event.inputs.weekly_headlines }}
         run: python generate_image.py
+
+      - name: Upload card as artifact (debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-output
+          path: card.png
+          retention-days: 3
