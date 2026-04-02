@@ -1,12 +1,12 @@
-# TLW v12 - X + LinkedIn separate copy, correct model, card design updated, tweet validation
-import os
-import re
-import time
-import requests
-import base64
+# TLW v14 - Full pipeline
+# News cards + Weekly tweet screenshot cards (Tuesday/Friday)
+# LinkedIn first comment support
+import os, re, time, random, requests, base64
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
+from datetime import datetime
 
+# ── CREDENTIALS ───────────────────────────────────────────────────
 BUFFER_API_KEY    = os.environ.get("BUFFER_API_KEY", "")
 BUFFER_PROFILE_X  = os.environ.get("BUFFER_PROFILE_X", "")
 BUFFER_PROFILE_LI = os.environ.get("BUFFER_PROFILE_LI", "")
@@ -16,6 +16,8 @@ UNSPLASH_KEY      = os.environ.get("UNSPLASH_KEY", "")
 STORY_TITLE       = os.environ.get("STORY_TITLE", "")
 STORY_SUMMARY     = os.environ.get("STORY_SUMMARY", "")
 IMAGE_KEYWORD     = os.environ.get("IMAGE_KEYWORD", "finance technology")
+CARD_TYPE         = os.environ.get("CARD_TYPE", "news")
+WEEKLY_HEADLINES  = os.environ.get("WEEKLY_HEADLINES", "")
 
 REPO       = "theledgerwire/tlw-content-engine"
 IMAGE_PATH = f"cards/card_{int(time.time())}.png"
@@ -25,241 +27,220 @@ W, H      = 1080, 1080
 GOLD      = (245, 197, 24)
 WHITE     = (255, 255, 255)
 NAVY      = (10, 22, 40)
-LGREY     = (175, 190, 215)
 DGREY     = (100, 115, 148)
+BLACK     = (20, 20, 20)
 FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 FONT_REG  = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
 
-print("=== TLW Card Generator v12 ===")
-print(f"Story: {STORY_TITLE[:60]}...")
+UNSPLASH_FALLBACKS = [
+    "stock market screen","trading screens","skyscraper glass",
+    "corporate office interior","server data center",
+    "city skyline night","bank vault","financial chart",
+]
+PHOTO_MODIFIERS = [
+    "morning","night","aerial","dramatic","minimal",
+    "dark","urban","modern","close up","wide angle","abstract","bright"
+]
 
+LI_FIRST_COMMENT = "If you're into AI & finance, you'll love The Ledger Wire — a free weekly newsletter that breaks it all down. Subscribe now -> theledgerwire.com"
 
-# ── TWEET CHARACTER COUNT (X counts URLs as 23 chars) ─────────────
+print(f"=== TLW v14 === CARD_TYPE: {CARD_TYPE}")
+
 def x_char_count(text):
-    """Count characters as X does — URLs always = 23 chars."""
-    t = re.sub(r'https?://\S+|[\w]+\.com\S*', 'X' * 23, text)
+    t = re.sub(r'https?://\S+|[\w]+\.com\S*', 'X'*23, text)
     return len(t)
 
-
-# ── CLAUDE ────────────────────────────────────────────────────────
-def call_claude(title, summary):
+def call_claude_news(title, summary):
     if not ANTHROPIC_KEY:
-        print("No Anthropic key — using title as fallback")
         return None
-
-    prompt = f"""You are a strict content filter for The Ledger Wire — an AI and Finance newsletter for North American professionals.
+    prompt = f"""You are a content writer for The Ledger Wire — an AI and Finance newsletter for North American professionals.
 
 Story title: {title}
 Story summary: {summary}
 
-You have TWO tiers. Pick the best tier that fits:
+TIER 1 — PREFERRED: AI/finance/tech/crypto/Fed/bank earnings/trade tariffs affecting markets/Chinese AI companies
+TIER 2 — FALLBACK: Major company earnings, M&A, layoffs, stock market moves, economic data, central banks, $50M+ funding rounds
 
-TIER 1 — PREFERRED (AI + Finance + Tech):
-- Artificial intelligence in finance, banking, or investment
-- Federal Reserve, interest rates, inflation, monetary policy
-- Major bank or fintech earnings, layoffs, or AI strategy
-- Crypto, blockchain, digital assets, stablecoins
-- Tech company AI investments, valuations, IPOs, funding rounds
-- Chinese AI companies (DeepSeek, Alibaba Cloud, ByteDance) — business/tech angle
-- Trade tariffs or sanctions that directly move stock markets or tech sectors
-- Global supply chain disruptions affecting commodity prices or equities
+Reply SKIP only if: pure geopolitics/war with no market angle, sports, entertainment, food, lifestyle.
 
-TIER 2 — FALLBACK (General Business/Economy):
-- Major company earnings, mergers, acquisitions, or layoffs — any sector
-- Stock market moves, economic data (GDP, jobs, inflation)
-- Central bank decisions anywhere in the world
-- Business strategy, executive changes at Fortune 500 companies
-- Real estate, commodities, energy markets
-- Global trade and economic policy with market impact
-- Startup funding rounds over $50M
-- Any story a North American finance professional would find useful
-
-Reply SKIP ONLY if the story is clearly irrelevant to business or finance:
-- Pure geopolitics or war with no market angle
-- Sports, entertainment, celebrities
-- Food, restaurants, consumer lifestyle
-- Local crime or accidents
-- Social media drama with no business impact
-
-Reply SKIP unless the story is DIRECTLY and PRIMARILY about:
-- Artificial intelligence in finance or banking
-- Federal Reserve, interest rates, inflation policy
-- Major bank earnings or AI strategy (JPMorgan, Goldman, BlackRock etc)
-- Fintech companies or cryptocurrency
-- Stock market moves caused specifically by AI or tech earnings
-
-If relevant, reply in this EXACT format with no extra text:
+Reply in this EXACT format:
 
 TIER: [1 or 2]
-TWEET: [Morning Brew style — STRICTLY under 220 chars. Rule: NEVER explain the full story. Create a curiosity gap — give ONE shocking hook that makes them NEED to tap to find out more. Structure: shocking statement or stat → one sentence that raises more questions than it answers → → theledgerwire.com #AI #Finance. Examples of good style: "A bank just replaced 700 people with one AI. Your department is next. → theledgerwire.com #AI #Finance" / "The Fed blinked. Your mortgage rate didn't. Here's why that matters. → theledgerwire.com #AI #Finance" / "Goldman just made it official. AI is doing the job you trained 4 years for. → theledgerwire.com #AI #Finance". NEVER write: "X company did Y and Z happened" — that kills the click.]
-LINKEDIN: [Morning Brew style for professionals. Open with ONE punchy statement that stops the scroll — a stat, a quote, or a provocative claim. Then 2-3 short paragraphs that build the story but always leave the "so what for ME" partially unanswered. End with a direct question that triggers replies and drives engagement. NEVER say "read the full story" or "link in bio" — the link is added automatically. NEVER write a press release. Write like a smart colleague sharing intel over coffee. Do NOT include any URLs.]
-H1: [1-3 words ONLY. The shocking STAT or NUMBER — big and visual. This is the first thing eyes land on. Must be a number, dollar amount, or ultra-short gut-shot. Use abbreviations always — never spell out. No asterisks. GOOD: "$60B." / "30,000 jobs." / "$114 oil." / "4% up." / "Week 5." BAD: "$60 Billion" / "Thirty thousand jobs" — too long, kills the punch.]
-H2: [2-4 words ONLY. Company name + what happened — gives context to H1. This is the "who" and "what". No asterisks. GOOD: "Anthropic. Going public." / "Oracle. 6am email." / "Brent crude. Iran war." / "Fed. No cuts." / "Goldman. Claude deployed." BAD: "IPO season just changed" — too vague, no company.]
-HOOK: [2-5 words. The bottom closer — the twist or "so what" that creates the curiosity gap and makes them tap to read. This goes at the very bottom above the footer. No asterisks. GOOD: "No ticker. Yet." / "Stock went up 4%." / "Your job is next." / "Rate cuts are dead." / "Read before markets open." BAD: "This is very interesting" — no tension.]
-LINES: [Exactly 3 short lines of supporting context — each line max 8 words, white text, fills the card. These sit between the headline and the hook. Give the key facts that make the headline make sense. Format: one line per row, separated by | character. Example: "Anthropic valuing at $60B | OpenAI already at $25B revenue | Both heading to public markets"]
-KEYWORD: [2-3 word Unsplash search term — concrete visual, not abstract. Examples: wall street, office technology, trading floor, data center, bank building]"""
+TWEET: [Morning Brew style, STRICTLY under 220 chars, curiosity gap, never explain full story, end with -> theledgerwire.com #AI #Finance]
+LINKEDIN: [Morning Brew style, ONE punchy opener, 2-3 short paragraphs, end with question, NO URLs]
+H1: [1-3 words MAX, shocking stat or number, abbreviations only, no asterisks. GOOD: $60B. / 30,000 jobs. BAD: $60 Billion]
+H2: [2-4 words, company + what happened. GOOD: Anthropic. Going public. / Oracle. 6am email.]
+HOOK: [2-5 words, bottom closer, curiosity gap. GOOD: No ticker. Yet. / Stock went up 4%.]
+LINES: [3 short facts max 8 words each separated by |]
+KEYWORD: [2-3 word Unsplash search term, concrete visual]"""
 
     try:
         r = requests.post(
             "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json"
-            },
-            json={
-                "model": "claude-sonnet-4-6",
-                "max_tokens": 800,
-                "messages": [{"role": "user", "content": prompt}]
-            },
+            headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 900, "messages": [{"role": "user", "content": prompt}]},
             timeout=30
         )
-        print(f"Claude status: {r.status_code}")
+        print(f"Claude news: {r.status_code}")
         if r.status_code != 200:
-            print(f"Claude error: {r.text[:200]}")
             return None
-
         text = r.json()["content"][0]["text"].strip()
-        print(f"Claude response:\n{text[:400]}")
-
+        print(f"Claude:\n{text[:400]}")
         if text.strip().upper() == "SKIP":
-            print("Claude says SKIP — not relevant")
             return "SKIP"
 
         result = {}
-        # Parse multi-line fields (LINKEDIN spans multiple lines)
         current_key = None
         current_val = []
-
         for line in text.split("\n"):
-            if line.startswith("TIER:"):
-                if current_key:
-                    result[current_key] = "\n".join(current_val).strip()
-                current_key = "tier"
-                current_val = [line.replace("TIER:", "").strip()]
-            elif line.startswith("TWEET:"):
-                if current_key:
-                    result[current_key] = "\n".join(current_val).strip()
-                current_key = "tweet"
-                current_val = [line.replace("TWEET:", "").strip()]
-            elif line.startswith("LINKEDIN:"):
-                if current_key:
-                    result[current_key] = "\n".join(current_val).strip()
-                current_key = "linkedin"
-                current_val = [line.replace("LINKEDIN:", "").strip()]
-            elif line.startswith("H1:"):
-                if current_key:
-                    result[current_key] = "\n".join(current_val).strip()
-                current_key = "h1"
-                current_val = [line.replace("H1:", "").strip()]
-            elif line.startswith("H2:"):
-                if current_key:
-                    result[current_key] = "\n".join(current_val).strip()
-                current_key = "h2"
-                current_val = [line.replace("H2:", "").strip()]
-            elif line.startswith("LINES:"):
-                if current_key:
-                    result[current_key] = "\n".join(current_val).strip()
-                current_key = "lines"
-                current_val = [line.replace("LINES:", "").strip()]
-            elif line.startswith("HOOK:"):
-                if current_key:
-                    result[current_key] = "\n".join(current_val).strip()
-                current_key = "hook"
-                current_val = [line.replace("HOOK:", "").strip()]
-            elif line.startswith("KEYWORD:"):
-                if current_key:
-                    result[current_key] = "\n".join(current_val).strip()
-                current_key = "keyword"
-                current_val = [line.replace("KEYWORD:", "").strip()]
-            elif current_key:
+            matched = False
+            for key in ["TIER","TWEET","LINKEDIN","H1","H2","HOOK","LINES","KEYWORD"]:
+                if line.startswith(f"{key}:"):
+                    if current_key:
+                        result[current_key] = "\n".join(current_val).strip()
+                    current_key = key.lower()
+                    current_val = [line.replace(f"{key}:","").strip()]
+                    matched = True
+                    break
+            if not matched and current_key:
                 current_val.append(line)
-
         if current_key:
             result[current_key] = "\n".join(current_val).strip()
 
-        # Validate tweet character count
         tweet = result.get("tweet", title)
-        count = x_char_count(tweet)
-        if count > 280:
-            print(f"WARNING: Tweet is {count} chars — trimming")
-            # Trim from the end, keeping hashtags
+        if x_char_count(tweet) > 280:
             parts = tweet.rsplit("#", 1)
             base = parts[0].strip()
             tags = "#" + parts[1] if len(parts) > 1 else ""
             while x_char_count(f"{base}... {tags}") > 278 and len(base) > 20:
                 base = base[:base.rfind(" ")]
-            tweet = f"{base}... {tags}".strip()
-            result["tweet"] = tweet
-            print(f"Trimmed tweet: {tweet}")
+            result["tweet"] = f"{base}... {tags}".strip()
 
-        # Defaults
+        if result.get("h1") in ["Breaking Now", "", None]:
+            print("H1 default — SKIP")
+            return "SKIP"
+
+        for key in ["h1","h2","hook"]:
+            if key in result:
+                result[key] = result[key].replace("**","").replace("*","").strip()
+
         result.setdefault("tweet", title)
         result.setdefault("linkedin", title)
         result.setdefault("h1", "Breaking Now")
         result.setdefault("h2", "Read Full Story")
-        result.setdefault("lines", "")
         result.setdefault("hook", "")
+        result.setdefault("lines", "")
         result.setdefault("tier", "1")
         result.setdefault("keyword", "finance technology")
-
-        # Strip asterisks from headlines
-        result["h1"] = result["h1"].replace("**", "").replace("*", "").strip()
-        result["h2"] = result["h2"].replace("**", "").replace("*", "").strip()
-
-        print(f"Tweet ({x_char_count(result['tweet'])} chars): {result['tweet'][:80]}...")
-        # Hard guard — if H1/H2 are still defaults, Claude parsing failed
-        if result.get("h1") in ["Breaking Now", "", None] or result.get("h2") in ["Read Full Story", "", None]:
-            print("WARNING: H1/H2 are defaults — Claude response likely malformed — treating as SKIP")
-            return "SKIP"
-        print(f"H1: {result['h1']}")
-        print(f"H2: {result['h2']}")
-        print(f"LinkedIn preview: {result['linkedin'][:100]}...")
-
+        print(f"Tier:{result['tier']} H1:{result['h1']} H2:{result['h2']} HOOK:{result['hook']}")
         return result
-
     except Exception as e:
-        print(f"Claude exception: {e}")
+        print(f"Claude news exception: {e}")
         return None
 
+def call_claude_weekly(headlines, card_type):
+    if not ANTHROPIC_KEY:
+        return None
 
-# ── UNSPLASH ──────────────────────────────────────────────────────
-# Reliable fallback keywords — concrete, specific, tested on Unsplash
-UNSPLASH_FALLBACKS = [
-    "stock market screen",
-    "trading screens",
-    "skyscraper glass",
-    "corporate office interior",
-    "server data center",
-    "city skyline night",
-    "bank vault",
-    "financial chart",
-]
+    if card_type == "weekly_tuesday":
+        instruction = """Write a Tuesday market recap for The Ledger Wire.
+Pick the 3-4 most market-moving stories from Monday's headlines below.
+Format as a witty tweet screenshot:
 
-def fetch_unsplash(keyword):
-    """Try a single keyword — return photo or None."""
+"Finance pros this Monday:
+[Story 1 with dry emoji reaction]
+[Story 2 with dry emoji reaction]
+[Story 3 with dry emoji reaction]
+[Ironic closer about the week ahead]"
+
+Under 260 chars. Maximum wit, relatable to finance professionals."""
+    else:
+        instruction = """Write a Friday week-in-review for The Ledger Wire.
+Pick the most ironic or chaotic moments from this week's headlines below.
+Format as a witty tweet screenshot:
+
+"Finance pros this week:
+Monday: [what happened] [emoji]
+Wednesday: [twist] [emoji]
+Thursday: [market reaction] [emoji]
+Friday: [ironic closer] [emoji]"
+
+Under 260 chars. Maximum dry humour, relatable to finance professionals."""
+
+    prompt = f"""{instruction}
+
+Headlines:
+{headlines}
+
+Reply in this EXACT format:
+
+TWEET_SCREENSHOT: [the witty recap text for inside the tweet card]
+X_POST: [short teaser tweet under 180 chars ending with -> theledgerwire.com #AI #Finance]
+LINKEDIN: [professional witty version, same stories, ends with engagement question, no URLs]"""
+
+    try:
+        r = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 600, "messages": [{"role": "user", "content": prompt}]},
+            timeout=30
+        )
+        print(f"Claude weekly: {r.status_code}")
+        if r.status_code != 200:
+            return None
+        text = r.json()["content"][0]["text"].strip()
+        print(f"Claude weekly:\n{text[:400]}")
+
+        result = {}
+        current_key = None
+        current_val = []
+        for line in text.split("\n"):
+            matched = False
+            for key in ["TWEET_SCREENSHOT","X_POST","LINKEDIN"]:
+                if line.startswith(f"{key}:"):
+                    if current_key:
+                        result[current_key] = "\n".join(current_val).strip()
+                    current_key = key.lower()
+                    current_val = [line.replace(f"{key}:","").strip()]
+                    matched = True
+                    break
+            if not matched and current_key:
+                current_val.append(line)
+        if current_key:
+            result[current_key] = "\n".join(current_val).strip()
+
+        print(f"Screenshot text: {result.get('tweet_screenshot','')[:100]}...")
+        return result
+    except Exception as e:
+        print(f"Claude weekly exception: {e}")
+        return None
+
+def fetch_photo(keyword):
     try:
         r = requests.get(
             "https://api.unsplash.com/photos/random",
-            params={"query": keyword, "orientation": "squarish"},
+            params={"query": keyword, "orientation": "squarish", "count": 5},
             headers={"Authorization": f"Client-ID {UNSPLASH_KEY}"},
             timeout=15
         )
         print(f"Unsplash [{keyword}]: {r.status_code}")
         if r.status_code != 200:
             return None
-        data = r.json()
-        img_url  = data["urls"]["regular"]
+        photos = r.json()
+        if not isinstance(photos, list) or not photos:
+            return None
+        chosen   = random.choice(photos)
+        img_url  = chosen["urls"]["regular"]
         img_data = requests.get(img_url, timeout=15).content
         from PIL import ImageEnhance
-        photo = Image.open(BytesIO(img_data)).convert("RGB")
+        photo  = Image.open(BytesIO(img_data)).convert("RGB")
         pw, ph = photo.size
-        scale  = max(W / pw, H / ph)
-        nw, nh = int(pw * scale), int(ph * scale)
+        scale  = max(W/pw, H/ph)
+        nw, nh = int(pw*scale), int(ph*scale)
         photo  = photo.resize((nw, nh), Image.LANCZOS)
-        left   = (nw - W) // 2
-        top    = (nh - H) // 2
-        photo  = photo.crop((left, top, left + W, top + H))
+        left   = (nw-W)//2
+        top    = (nh-H)//2
+        photo  = photo.crop((left, top, left+W, top+H))
         photo  = ImageEnhance.Color(photo).enhance(0.78)
         photo  = ImageEnhance.Brightness(photo).enhance(0.65)
         return photo
@@ -268,42 +249,37 @@ def fetch_unsplash(keyword):
         return None
 
 def get_unsplash_photo(keyword):
-    """Try Claude keyword first, then fallbacks until one works."""
     if not UNSPLASH_KEY:
         return None
-    for kw in [keyword] + UNSPLASH_FALLBACKS:
-        photo = fetch_unsplash(kw)
+    modifier = random.choice(PHOTO_MODIFIERS)
+    for kw in [f"{keyword} {modifier}", keyword] + UNSPLASH_FALLBACKS:
+        photo = fetch_photo(kw)
         if photo:
-            print(f"Unsplash success with keyword: {kw}")
             return photo
-    print("All Unsplash keywords failed — using navy fallback")
+    print("All Unsplash failed — navy fallback")
     return None
 
-
 def apply_gradient(img, start=0.30):
-    grad = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(grad)
-    for y in range(int(H * start), H):
-        t = float(y - H * start) / float(H * (1 - start))
+    grad = Image.new("RGBA", (W, H), (0,0,0,0))
+    gd   = ImageDraw.Draw(grad)
+    for y in range(int(H*start), H):
+        t = float(y - H*start) / float(H*(1-start))
         t = max(0.0, min(1.0, t))
-        a = int(255 * t ** 0.78)
-        gd.line([(0, y), (W, y)], fill=(10, 22, 40, a))
+        a = int(255 * t**0.78)
+        gd.line([(0,y),(W,y)], fill=(10,22,40,a))
     for y in range(0, 88):
-        t = 1 - (y / 88)
-        a = int(55 * t ** 0.55)
-        gd.line([(0, y), (W, y)], fill=(10, 22, 40, a))
+        t = 1-(y/88)
+        a = int(55 * t**0.55)
+        gd.line([(0,y),(W,y)], fill=(10,22,40,a))
     return Image.alpha_composite(img.convert("RGBA"), grad).convert("RGB")
 
-
-# ── CARD GENERATOR ─────────────────────────────────────────────────
 def wrap_text(draw, text, font, max_width):
     words = text.split()
     lines = []
     current = ""
     for word in words:
         test = f"{current} {word}".strip()
-        w = draw.textbbox((0, 0), test, font=font)[2]
-        if w <= max_width:
+        if draw.textbbox((0,0), test, font=font)[2] <= max_width:
             current = test
         else:
             if current:
@@ -313,361 +289,340 @@ def wrap_text(draw, text, font, max_width):
         lines.append(current)
     return lines
 
-
 def draw_footer(draw):
-    """Gold footer bar — same on both card types."""
-    PAD   = 56
-    draw.rectangle([(0, H - 72), (W, H)], fill=GOLD)
-    url_f   = ImageFont.truetype(FONT_BOLD, 19)
-    tags_f  = ImageFont.truetype(FONT_REG, 19)
-    brand_t = "THE LEDGER WIRE"
-    url_t   = "theledgerwire.com"
-    btb     = draw.textbbox((0, 0), brand_t, font=url_f)
-    utb     = draw.textbbox((0, 0), url_t, font=tags_f)
-    uw      = utb[2] - utb[0]
-    foot_y  = H - 72 + (72 - btb[3]) // 2
-    draw.text((PAD, foot_y), brand_t, font=url_f, fill=NAVY)
-    draw.text((W - PAD - uw, foot_y), url_t, font=tags_f, fill=NAVY)
+    PAD    = 56
+    draw.rectangle([(0, H-72),(W, H)], fill=GOLD)
+    url_f  = ImageFont.truetype(FONT_BOLD, 19)
+    tags_f = ImageFont.truetype(FONT_REG,  19)
+    btb    = draw.textbbox((0,0), "THE LEDGER WIRE", font=url_f)
+    utb    = draw.textbbox((0,0), "theledgerwire.com", font=tags_f)
+    uw     = utb[2]-utb[0]
+    fy     = H-72+(72-btb[3])//2
+    draw.text((PAD, fy),         "THE LEDGER WIRE",   font=url_f,  fill=NAVY)
+    draw.text((W-PAD-uw, fy),    "theledgerwire.com", font=tags_f, fill=NAVY)
 
-
-def card_with_photo(img, headline1, headline2, hook=""):
-    """DESIGN MODE 1 — Full bleed photo.
-    Layout bottom-up:
-      source line (grey, tiny)
-      HOOK (white bold — biggest closer)
-      H2 (gold, medium — company/context)
-      H1 (white, large — stat/number)
-      gold rule
-    """
-    draw       = ImageDraw.Draw(img)
-    PAD        = 56
-    MAX_TEXT_W = W - PAD - 40
-
-    # Left gold bar
-    draw.rectangle([(0, 0), (6, H - 72)], fill=GOLD)
-
-    # Logo top left
+def card_with_photo(img, h1, h2, hook=""):
+    draw = ImageDraw.Draw(img)
+    PAD  = 56
+    MTW  = W-PAD-40
+    draw.rectangle([(0,0),(6,H-72)], fill=GOLD)
     logo_f = ImageFont.truetype(FONT_BOLD, 20)
-    logo_t = "THE LEDGER WIRE"
-    lb     = draw.textbbox((0, 0), logo_t, font=logo_f)
-    lw     = lb[2] - lb[0]
-    draw.text((PAD, 36), logo_t, font=logo_f, fill=WHITE)
-    draw.rectangle([(PAD, 60), (PAD + lw, 63)], fill=GOLD)
-
-    # Font hierarchy — H1 big, H2 medium, HOOK bold closer
-    h1_f   = ImageFont.truetype(FONT_BOLD, 90)   # stat — biggest
-    h2_f   = ImageFont.truetype(FONT_BOLD, 46)   # context — medium
-    hook_f = ImageFont.truetype(FONT_BOLD, 46)   # closer — same as H2
-    src_f  = ImageFont.truetype(FONT_REG,  20)   # source — tiny
-
-    h1_lines   = wrap_text(draw, headline1, h1_f, MAX_TEXT_W)
-    h2_lines   = wrap_text(draw, headline2, h2_f, MAX_TEXT_W)
-    hook_lines = wrap_text(draw, hook, hook_f, MAX_TEXT_W) if hook else []
-
-    h1_lh   = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
-    h2_lh   = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
-    hook_lh = draw.textbbox((0, 0), "Ag", font=hook_f)[3]
-    src_h   = draw.textbbox((0, 0), "theledgerwire.com", font=src_f)[3]
-
-    total_h1   = h1_lh   * len(h1_lines)   + 4 * max(0, len(h1_lines)   - 1)
-    total_h2   = h2_lh   * len(h2_lines)   + 4 * max(0, len(h2_lines)   - 1)
-    total_hook = hook_lh * len(hook_lines) + 4 * max(0, len(hook_lines) - 1)
-
-    # Build layout bottom-up
-    SAFE_BOT = H - 72 - 24
-    src_y    = SAFE_BOT - src_h
-    hook_y   = src_y - 14 - total_hook if hook else src_y
-    h2_y     = hook_y - 14 - total_h2
-    h1_y     = h2_y  - 10 - total_h1
-    rule_y   = h1_y  - 20
-
-    # Gold accent rule
-    draw.rectangle([(PAD, rule_y), (PAD + 52, rule_y + 4)], fill=GOLD)
-
-    # H1 — white, large stat
+    lb = draw.textbbox((0,0), "THE LEDGER WIRE", font=logo_f)
+    lw = lb[2]-lb[0]
+    draw.text((PAD, 36), "THE LEDGER WIRE", font=logo_f, fill=WHITE)
+    draw.rectangle([(PAD, 60),(PAD+lw, 63)], fill=GOLD)
+    h1_f   = ImageFont.truetype(FONT_BOLD, 90)
+    h2_f   = ImageFont.truetype(FONT_BOLD, 46)
+    hook_f = ImageFont.truetype(FONT_BOLD, 46)
+    src_f  = ImageFont.truetype(FONT_REG,  20)
+    h1_lines   = wrap_text(draw, h1,   h1_f,   MTW)
+    h2_lines   = wrap_text(draw, h2,   h2_f,   MTW)
+    hook_lines = wrap_text(draw, hook, hook_f, MTW) if hook else []
+    h1_lh   = draw.textbbox((0,0),"Ag",font=h1_f)[3]
+    h2_lh   = draw.textbbox((0,0),"Ag",font=h2_f)[3]
+    hook_lh = draw.textbbox((0,0),"Ag",font=hook_f)[3]
+    src_h   = draw.textbbox((0,0),"theledgerwire.com",font=src_f)[3]
+    th1 = h1_lh*len(h1_lines)+4*max(0,len(h1_lines)-1)
+    th2 = h2_lh*len(h2_lines)+4*max(0,len(h2_lines)-1)
+    thk = hook_lh*len(hook_lines)+4*max(0,len(hook_lines)-1)
+    SAFE = H-72-24
+    src_y  = SAFE - src_h
+    hook_y = src_y - 14 - thk if hook else src_y
+    h2_y   = hook_y - 14 - th2
+    h1_y   = h2_y   - 10 - th1
+    rule_y = h1_y   - 20
+    draw.rectangle([(PAD, rule_y),(PAD+52, rule_y+4)], fill=GOLD)
     y = h1_y
     for line in h1_lines:
         draw.text((PAD, y), line, font=h1_f, fill=WHITE)
-        y += h1_lh + 4
-
-    # H2 — gold, company/context
+        y += h1_lh+4
     y = h2_y
     for line in h2_lines:
         draw.text((PAD, y), line, font=h2_f, fill=GOLD)
-        y += h2_lh + 4
-
-    # HOOK — white bold closer
+        y += h2_lh+4
     if hook_lines:
         y = hook_y
         for line in hook_lines:
             draw.text((PAD, y), line, font=hook_f, fill=WHITE)
-            y += hook_lh + 4
-
-    # Source
+            y += hook_lh+4
     draw.text((PAD, src_y), "theledgerwire.com", font=src_f, fill=DGREY)
     draw_footer(draw)
-    img.save("card.png", "PNG")
+    img.save("card.png","PNG")
     print("Card saved (photo mode)")
 
-
-def card_no_photo(headline1, headline2, support_lines=None, hook=""):
-    """DESIGN MODE 2 — Navy grid fallback. Like starcloud."""
-    img  = Image.new("RGB", (W, H), NAVY)
+def card_no_photo(h1, h2, support_lines=None, hook=""):
+    img  = Image.new("RGB", (W,H), NAVY)
     draw = ImageDraw.Draw(img)
-
-    # Navy gradient
-    for y_px in range(0, H):
-        t = y_px / H
-        draw.line(
-            [(0, y_px), (W, y_px)],
-            fill=(int(10 + 15*t), int(22 + 18*t), int(40 + 28*t))
-        )
-
-    # Grid overlay
-    grid_img  = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    grid_draw = ImageDraw.Draw(grid_img)
-    for x in range(0, W, 54):
-        grid_draw.line([(x, 0), (x, H - 72)], fill=(255, 255, 255, 10))
-    for y_px in range(0, H - 72, 54):
-        grid_draw.line([(0, y_px), (W, y_px)], fill=(255, 255, 255, 10))
-    img  = Image.alpha_composite(img.convert("RGBA"), grid_img).convert("RGB")
+    for y_px in range(H):
+        t = y_px/H
+        draw.line([(0,y_px),(W,y_px)], fill=(int(10+15*t),int(22+18*t),int(40+28*t)))
+    gi  = Image.new("RGBA",(W,H),(0,0,0,0))
+    gd  = ImageDraw.Draw(gi)
+    for x in range(0,W,54):
+        gd.line([(x,0),(x,H-72)], fill=(255,255,255,10))
+    for y_px in range(0,H-72,54):
+        gd.line([(0,y_px),(W,y_px)], fill=(255,255,255,10))
+    img  = Image.alpha_composite(img.convert("RGBA"), gi).convert("RGB")
     draw = ImageDraw.Draw(img)
-
-    PAD        = 86
-    MAX_TEXT_W = W - PAD - 40
-
-    # Left gold bar
-    draw.rectangle([(0, 0), (6, H - 72)], fill=GOLD)
-
-    # Logo
+    PAD  = 86
+    MTW  = W-PAD-40
+    draw.rectangle([(0,0),(6,H-72)], fill=GOLD)
     logo_f = ImageFont.truetype(FONT_BOLD, 18)
-    logo_t = "THE LEDGER WIRE"
-    lb     = draw.textbbox((0, 0), logo_t, font=logo_f)
-    lw     = lb[2] - lb[0]
-    draw.text((PAD, 52), logo_t, font=logo_f, fill=WHITE)
-    draw.rectangle([(PAD, 74), (PAD + lw, 77)], fill=GOLD)
-
-    # Dominant H1 — large gold at top
-    h1_f     = ImageFont.truetype(FONT_BOLD, 120)
-    h1_lines = wrap_text(draw, headline1, h1_f, MAX_TEXT_W)
-    h1_lh    = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
-
+    lb = draw.textbbox((0,0),"THE LEDGER WIRE",font=logo_f)
+    lw = lb[2]-lb[0]
+    draw.text((PAD,52),"THE LEDGER WIRE",font=logo_f,fill=WHITE)
+    draw.rectangle([(PAD,74),(PAD+lw,77)],fill=GOLD)
+    h1_f  = ImageFont.truetype(FONT_BOLD, 120)
+    h1_lines = wrap_text(draw,h1,h1_f,MTW)
+    h1_lh    = draw.textbbox((0,0),"Ag",font=h1_f)[3]
     y = 110
     for line in h1_lines:
-        draw.text((PAD, y), line, font=h1_f, fill=GOLD)
-        y += h1_lh + 4
-
-    # H2 — white subtitle
-    h2_f     = ImageFont.truetype(FONT_BOLD, 52)
-    h2_lines = wrap_text(draw, headline2, h2_f, MAX_TEXT_W)
-    h2_lh    = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
-
+        draw.text((PAD,y),line,font=h1_f,fill=GOLD)
+        y += h1_lh+4
+    h2_f  = ImageFont.truetype(FONT_BOLD, 52)
+    h2_lines = wrap_text(draw,h2,h2_f,MTW)
+    h2_lh    = draw.textbbox((0,0),"Ag",font=h2_f)[3]
     y += 16
     for line in h2_lines:
-        draw.text((PAD, y), line, font=h2_f, fill=WHITE)
-        y += h2_lh + 4
-
-    # Gold divider
+        draw.text((PAD,y),line,font=h2_f,fill=WHITE)
+        y += h2_lh+4
     y += 20
-    draw.rectangle([(PAD, y), (PAD + 200, y + 5)], fill=GOLD)
+    draw.rectangle([(PAD,y),(PAD+200,y+5)],fill=GOLD)
     y += 32
-
-    # Supporting bullet lines
     if support_lines:
-        line_f  = ImageFont.truetype(FONT_REG, 28)
-        line_lh = draw.textbbox((0, 0), "Ag", font=line_f)[3]
-        for line_text in support_lines:
-            if y + line_lh > H - 72 - 80:
+        lf  = ImageFont.truetype(FONT_REG, 28)
+        llh = draw.textbbox((0,0),"Ag",font=lf)[3]
+        for lt in support_lines:
+            if y+llh > H-72-160:
                 break
-            # Gold left bar per line
-            draw.rectangle([(PAD, y + 4), (PAD + 4, y + line_lh - 4)], fill=GOLD)
-            draw.text((PAD + 18, y), line_text.strip(), font=line_f, fill=WHITE)
-            y += line_lh + 16
-
-    # Hook line at bottom (white + gold)
-    hook_y = H - 72 - 110
+            draw.rectangle([(PAD,y+6),(PAD+4,y+llh-6)],fill=GOLD)
+            draw.text((PAD+18,y),lt.strip(),font=lf,fill=WHITE)
+            y += llh+16
     if hook:
-        hook_parts = hook.split(".")
-        hook_f  = ImageFont.truetype(FONT_BOLD, 48)
-        hook_lh = draw.textbbox((0, 0), "Ag", font=hook_f)[3]
-        hk_y = hook_y
-        for part in hook_parts:
-            part = part.strip()
-            if not part:
-                continue
-            col = GOLD if hook_parts.index(part) % 2 == 1 else WHITE
-            draw.text((PAD, hk_y), part + ("." if not part.endswith(".") else ""), font=hook_f, fill=col)
-            hk_y += hook_lh + 4
-
-    # Source
-    src_f = ImageFont.truetype(FONT_REG, 22)
-    draw.text((PAD, H - 72 - 36), "theledgerwire.com", font=src_f, fill=DGREY)
-
+        hf  = ImageFont.truetype(FONT_BOLD, 48)
+        hlh = draw.textbbox((0,0),"Ag",font=hf)[3]
+        parts = [p.strip() for p in hook.split(".") if p.strip()]
+        hy = H-72-110
+        for i, part in enumerate(parts):
+            draw.text((PAD,hy),part+".",font=hf,fill=WHITE if i%2==0 else GOLD)
+            hy += hlh+4
+    sf = ImageFont.truetype(FONT_REG, 22)
+    draw.text((PAD,H-72-36),"theledgerwire.com",font=sf,fill=DGREY)
     draw_footer(draw)
-    img.save("card.png", "PNG")
-    print("Card saved (fallback mode)")
+    img.save("card.png","PNG")
+    print("Card saved (navy fallback)")
 
+def card_tweet_screenshot(tweet_text, label="THIS WEEK"):
+    img  = Image.new("RGB",(W,H),(10,22,40))
+    draw = ImageDraw.Draw(img)
+    # Gold top half gradient
+    for y_px in range(H//2):
+        t = 1-(y_px/(H//2))
+        draw.line([(0,y_px),(W,y_px)], fill=(int(245*t+10*(1-t)),int(197*t+22*(1-t)),int(24*t+40*(1-t))))
+    # Navy bottom
+    for y_px in range(H//2, H):
+        t = (y_px-H//2)/(H//2)
+        draw.line([(0,y_px),(W,y_px)], fill=(int(10+5*t),int(22+8*t),int(40+10*t)))
+    # White card
+    CX, CY, CW, CH = 72, 120, W-144, 660
+    draw.rounded_rectangle([(CX,CY),(CX+CW,CY+CH)], radius=24, fill=WHITE)
+    # Logo circle
+    LX, LY, LR = CX+40, CY+44, 36
+    draw.ellipse([(LX,LY),(LX+LR*2,LY+LR*2)], fill=NAVY)
+    sf = ImageFont.truetype(FONT_BOLD, 11)
+    draw.text((LX+8, LY+8),  "The",    font=sf, fill=GOLD)
+    draw.text((LX+4, LY+22), "Ledger", font=sf, fill=WHITE)
+    draw.text((LX+8, LY+36), "Wire",   font=sf, fill=GOLD)
+    # Account name
+    nf  = ImageFont.truetype(FONT_BOLD, 26)
+    hf  = ImageFont.truetype(FONT_REG,  22)
+    draw.text((LX+LR*2+20, CY+50), "The Ledger Wire", font=nf, fill=BLACK)
+    draw.text((LX+LR*2+20, CY+82), "@LedgerWire",     font=hf, fill=(100,100,100))
+    # Divider
+    draw.line([(CX+40, CY+128),(CX+CW-40, CY+128)], fill=(220,220,220), width=1)
+    # Tweet text
+    tf  = ImageFont.truetype(FONT_REG,  30)
+    tbf = ImageFont.truetype(FONT_BOLD, 30)
+    MTW = CW-80
+    lines  = tweet_text.split("\n")
+    ty     = CY+148
+    line_h = draw.textbbox((0,0),"Ag",font=tf)[3]+10
+    for i, line in enumerate(lines):
+        if not line.strip():
+            ty += line_h//2
+            continue
+        font    = tbf if i == 0 else tf
+        wrapped = wrap_text(draw, line, font, MTW)
+        for wl in wrapped:
+            if ty > CY+CH-120:
+                break
+            draw.text((CX+40, ty), wl, font=font, fill=BLACK)
+            ty += line_h
+    # Timestamp
+    tif = ImageFont.truetype(FONT_REG, 20)
+    ts  = datetime.now().strftime("%-I:%M %p · %b %-d, %Y")
+    draw.text((CX+40, CY+CH-80), ts, font=tif, fill=(100,100,100))
+    # Stats bar
+    draw.line([(CX+40,CY+CH-52),(CX+CW-40,CY+CH-52)], fill=(220,220,220), width=1)
+    stbf = ImageFont.truetype(FONT_BOLD, 20)
+    strf = ImageFont.truetype(FONT_REG,  20)
+    sx, sy = CX+40, CY+CH-36
+    for bold_t, reg_t in [("344"," Replies"),("1.2K"," Reposts"),("6.7K"," Likes")]:
+        draw.text((sx,sy), bold_t, font=stbf, fill=BLACK)
+        bw = draw.textbbox((0,0),bold_t,font=stbf)[2]
+        draw.text((sx+bw,sy), reg_t, font=strf, fill=(100,100,100))
+        rw = draw.textbbox((0,0),reg_t,font=strf)[2]
+        sx += bw+rw+40
+    # Bottom label + URL
+    lbf = ImageFont.truetype(FONT_BOLD, 22)
+    ubf = ImageFont.truetype(FONT_REG,  22)
+    draw.text((72, CY+CH+28), label, font=lbf, fill=GOLD)
+    utb = draw.textbbox((0,0),"theledgerwire.com",font=ubf)
+    draw.text((W-72-(utb[2]-utb[0]), CY+CH+28), "theledgerwire.com", font=ubf, fill=WHITE)
+    img.save("card.png","PNG")
+    print("Card saved (tweet screenshot mode)")
 
-def generate_card(headline1, headline2, keyword, support_lines=None, hook=""):
+def generate_news_card(h1, h2, keyword, support_lines=None, hook=""):
     photo = get_unsplash_photo(keyword)
     if photo:
-        img = apply_gradient(photo)
-        print("Photo found → photo card design")
-        card_with_photo(img, headline1, headline2, hook)
+        card_with_photo(apply_gradient(photo), h1, h2, hook)
     else:
-        print("No photo → navy stat card design")
-        card_no_photo(headline1, headline2, support_lines, hook)
+        card_no_photo(h1, h2, support_lines, hook)
     return "card.png"
 
-
-
-# ── GITHUB ────────────────────────────────────────────────────────
 def push_to_github(image_path, token, repo, file_path):
-    print(f"Pushing image to GitHub: {file_path}")
-    with open(image_path, "rb") as f:
+    print(f"Pushing to GitHub: {file_path}")
+    with open(image_path,"rb") as f:
         content = base64.b64encode(f.read()).decode("utf-8")
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-    get_r = requests.get(
-        f"https://api.github.com/repos/{repo}/contents/{file_path}",
-        headers=headers
-    )
-    sha = get_r.json().get("sha") if get_r.status_code == 200 else None
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+    get_r   = requests.get(f"https://api.github.com/repos/{repo}/contents/{file_path}", headers=headers)
+    sha     = get_r.json().get("sha") if get_r.status_code == 200 else None
     payload = {"message": "Add card image", "content": content, "branch": "main"}
     if sha:
         payload["sha"] = sha
-    put_r = requests.put(
-        f"https://api.github.com/repos/{repo}/contents/{file_path}",
-        headers=headers,
-        json=payload,
-        timeout=30
-    )
-    print(f"GitHub push status: {put_r.status_code}")
-    return put_r.status_code in [200, 201]
+    put_r = requests.put(f"https://api.github.com/repos/{repo}/contents/{file_path}", headers=headers, json=payload, timeout=30)
+    print(f"GitHub push: {put_r.status_code}")
+    return put_r.status_code in [200,201]
 
-
-# ── BUFFER ────────────────────────────────────────────────────────
-def post_to_buffer(post_text, image_url, channel_id, api_key, platform="", retries=2):
+def post_to_buffer(post_text, image_url, channel_id, api_key, platform="", retries=2, first_comment=""):
     print(f"Posting to Buffer {platform}...")
     time.sleep(3)
-
-    # Escape for GraphQL string
-    safe_text = post_text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
-
+    safe_text    = post_text.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')
+    safe_comment = first_comment.replace('\\','\\\\').replace('"','\\"') if first_comment else ""
+    comment_line = f'firstComment: {{ text: "{safe_comment}" }},' if first_comment else ""
     query = '''mutation CreatePost {
   createPost(input: {
     text: "%s",
     channelId: "%s",
     schedulingType: automatic,
     mode: addToQueue,
-    assets: {
-      images: [{ url: "%s" }]
-    }
+    %s
+    assets: { images: [{ url: "%s" }] }
   }) {
-    ... on PostActionSuccess {
-      post { id text }
-    }
-    ... on MutationError {
-      message
-    }
+    ... on PostActionSuccess { post { id text } }
+    ... on MutationError { message }
   }
-}''' % (safe_text, channel_id.strip(), image_url)
+}''' % (safe_text, channel_id.strip(), comment_line, image_url)
 
-    for attempt in range(retries + 1):
+    for attempt in range(retries+1):
         try:
             r = requests.post(
                 "https://api.buffer.com",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={"query": query},
-                timeout=30
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"query": query}, timeout=30
             )
-            print(f"Buffer {platform} status: {r.status_code}")
-            print(f"Buffer {platform} response: {r.text[:300]}")
-
-            response_data = r.json()
-            if "errors" in response_data:
-                print(f"Buffer GraphQL errors: {response_data['errors']}")
+            print(f"Buffer {platform}: {r.status_code} — {r.text[:200]}")
+            data      = r.json()
+            post_data = data.get("data",{}).get("createPost",{})
+            if "errors" in data:
+                print(f"GraphQL errors: {data['errors']}")
                 if attempt < retries:
-                    print(f"Retrying in 5s... (attempt {attempt + 1}/{retries})")
-                    time.sleep(5)
-                    continue
+                    time.sleep(5); continue
                 return False
-
-            post_data = response_data.get("data", {}).get("createPost", {})
             if "message" in post_data and "post" not in post_data:
-                print(f"Buffer error message: {post_data['message']}")
+                print(f"Buffer error: {post_data['message']}")
                 if attempt < retries:
-                    time.sleep(5)
-                    continue
+                    time.sleep(5); continue
                 return False
-
             return r.status_code == 200
-
         except Exception as e:
             print(f"Buffer {platform} exception: {e}")
             if attempt < retries:
                 time.sleep(5)
-            continue
-
     return False
 
+# ── WEEKLY CARD FLOW ──────────────────────────────────────────────
+if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
+    if not WEEKLY_HEADLINES:
+        print("No weekly headlines — exiting")
+        exit(0)
+    label         = "THIS WEEK" if CARD_TYPE == "weekly_friday" else "THIS MONDAY"
+    weekly_result = call_claude_weekly(WEEKLY_HEADLINES, CARD_TYPE)
+    if not weekly_result:
+        print("Claude weekly failed — exiting")
+        exit(0)
+    tweet_screenshot = weekly_result.get("tweet_screenshot","")
+    x_post           = weekly_result.get("x_post","")
+    linkedin_text    = weekly_result.get("linkedin","")
+    if not tweet_screenshot:
+        print("No screenshot text — exiting")
+        exit(0)
+    card_tweet_screenshot(tweet_screenshot, label)
+    if BUFFER_API_KEY and GITHUB_TOKEN:
+        pushed = push_to_github("card.png", GITHUB_TOKEN, REPO, IMAGE_PATH)
+        if pushed:
+            time.sleep(5)
+            if BUFFER_PROFILE_X and x_post:
+                ok_x = post_to_buffer(x_post, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
+                print("X: SUCCESS" if ok_x else "X: FAILED")
+            if BUFFER_PROFILE_LI and linkedin_text:
+                time.sleep(3)
+                li_post = f"{linkedin_text}\n\n(Get this decoded every Wednesday, free -> theledgerwire.com)"
+                ok_li   = post_to_buffer(li_post, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn", first_comment=LI_FIRST_COMMENT)
+                print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
+    exit(0)
 
-# ── MAIN ──────────────────────────────────────────────────────────
+# ── NEWS CARD FLOW ────────────────────────────────────────────────
 if not STORY_TITLE:
-    print("No story title provided — exiting")
+    print("No story title — exiting")
     exit(0)
 
-claude_result = call_claude(STORY_TITLE, STORY_SUMMARY)
-
+claude_result = call_claude_news(STORY_TITLE, STORY_SUMMARY)
 if claude_result == "SKIP" or claude_result is None:
-    print("Story skipped or Claude failed — exiting")
+    print("Story skipped — exiting")
     exit(0)
 
-tweet_text    = claude_result.get("tweet", STORY_TITLE)
+tweet_text    = claude_result.get("tweet",    STORY_TITLE)
 linkedin_text = claude_result.get("linkedin", STORY_TITLE)
-headline1     = claude_result.get("h1", "Breaking Now")
-headline2     = claude_result.get("h2", "Read Full Story")
-img_keyword   = claude_result.get("keyword", IMAGE_KEYWORD)
-lines_raw     = claude_result.get("lines", "")
+headline1     = claude_result.get("h1",       "Breaking Now")
+headline2     = claude_result.get("h2",       "Read Full Story")
+hook_text     = claude_result.get("hook",     "")
+lines_raw     = claude_result.get("lines",    "")
+img_keyword   = claude_result.get("keyword",  IMAGE_KEYWORD)
+story_tier    = claude_result.get("tier",     "1").strip()
 support_lines = [l.strip() for l in lines_raw.split("|") if l.strip()][:3]
-hook_text     = claude_result.get("hook", "").replace("**","").replace("*","").strip()
-story_tier    = claude_result.get("tier", "1").strip()
-print(f"Story tier: {story_tier} ({'AI/Finance/Tech' if story_tier == '1' else 'General Business'})")
 
-# Final tweet char count check
-final_count = x_char_count(tweet_text)
-print(f"Final tweet: {final_count} chars")
-if final_count > 280:
-    print(f"ERROR: Tweet still over 280 chars ({final_count}) — exiting to avoid bad post")
+print(f"Tier: {story_tier} | Tweet: {x_char_count(tweet_text)} chars")
+if x_char_count(tweet_text) > 280:
+    print("ERROR: Tweet over 280 — exiting")
     exit(1)
 
-generate_card(headline1, headline2, img_keyword, support_lines, hook_text)
+generate_news_card(headline1, headline2, img_keyword, support_lines, hook_text)
 
 if BUFFER_API_KEY and GITHUB_TOKEN:
     pushed = push_to_github("card.png", GITHUB_TOKEN, REPO, IMAGE_PATH)
     if pushed:
-        time.sleep(5)  # Let GitHub CDN propagate
-
+        time.sleep(5)
         if BUFFER_PROFILE_X:
-            success_x = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
-            print("X: SUCCESS" if success_x else "X: FAILED")
-
+            ok_x = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
+            print("X: SUCCESS" if ok_x else "X: FAILED")
         if BUFFER_PROFILE_LI:
             time.sleep(3)
-            # LinkedIn — link drives to newsletter signup, not a specific story
-            li_post = f"{linkedin_text}\n\n(Get this decoded every Wednesday, free → theledgerwire.com)"
-            success_li = post_to_buffer(li_post, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
-            print("LinkedIn: SUCCESS" if success_li else "LinkedIn: FAILED")
+            li_post = f"{linkedin_text}\n\n(Get this decoded every Wednesday, free -> theledgerwire.com)"
+            ok_li   = post_to_buffer(li_post, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn", first_comment=LI_FIRST_COMMENT)
+            print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
     else:
         print("FAILED: GitHub push failed")
 else:
-    missing = [k for k, v in {
-        "BUFFER_API_KEY": BUFFER_API_KEY,
-        "GITHUB_TOKEN": GITHUB_TOKEN
-    }.items() if not v]
+    missing = [k for k,v in {"BUFFER_API_KEY":BUFFER_API_KEY,"GITHUB_TOKEN":GITHUB_TOKEN}.items() if not v]
     print(f"Missing credentials: {', '.join(missing)}")
