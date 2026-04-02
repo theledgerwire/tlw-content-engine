@@ -358,16 +358,16 @@ COUNTRY_KEYWORDS = {
     "nvidia":    ["gpu graphics card", "nvidia chip semiconductor", "ai chip processor"],
 }
 
-def get_country_keywords(keyword):
-    """Check if keyword matches any country/company and return specific photo keywords."""
-    kw_lower = keyword.lower()
+def get_country_keywords(keyword, story_context=""):
+    """Check keyword AND story title for country/company matches."""
+    combined = f"{keyword} {story_context}".lower()
     for trigger, replacements in COUNTRY_KEYWORDS.items():
-        if trigger in kw_lower:
+        if trigger in combined:
             print(f"Country/company match: [{trigger}] → {replacements[0]}")
             return replacements
     return []
 
-def get_photo(keyword):
+def get_photo(keyword, story_context=""):
     """
     3-tier photo search with country/company detection:
     1. Country/company specific keywords (if detected)
@@ -375,7 +375,7 @@ def get_photo(keyword):
     3. Unsplash — secondary fallback
     4. None → navy card
     """
-    country_kws = get_country_keywords(keyword)
+    country_kws = get_country_keywords(keyword, story_context)
     keywords_to_try = [keyword] + country_kws + PHOTO_FALLBACKS
 
     # Tier 1 — Pexels (try country-specific first if detected)
@@ -607,8 +607,8 @@ def card_tweet_screenshot(tweet_text, label="THIS WEEK"):
     print("Card saved (tweet screenshot)")
 
 # ── GENERATE CARD ─────────────────────────────────────────────────
-def generate_news_card(h1, h2, keyword, support_lines=None, hook=""):
-    photo = get_photo(keyword)
+def generate_news_card(h1, h2, keyword, support_lines=None, hook="", story_context=""):
+    photo = get_photo(keyword, story_context)
     if photo:
         card_with_photo(apply_gradient(photo), h1, h2, hook)
     else:
@@ -640,12 +640,8 @@ def post_to_buffer(post_text, image_url, channel_id, api_key,
     def esc(s):
         return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
 
-    safe_text    = esc(post_text)
-    cid          = channel_id.strip()
-    safe_comment = esc(first_comment) if first_comment else ""
-
-    # Add firstComment block only for LinkedIn when comment provided
-    comment_block = f'firstComment: {{ text: "{safe_comment}" }},' if safe_comment else ""
+    safe_text = esc(post_text)
+    cid       = channel_id.strip()
 
     query = '''mutation CreatePost {
   createPost(input: {
@@ -653,13 +649,12 @@ def post_to_buffer(post_text, image_url, channel_id, api_key,
     channelId: "%s",
     schedulingType: automatic,
     mode: addToQueue,
-    %s
     assets: { images: [{ url: "%s" }] }
   }) {
     ... on PostActionSuccess { post { id text } }
     ... on MutationError { message }
   }
-}''' % (safe_text, cid, comment_block, image_url)
+}''' % (safe_text, cid, image_url)
 
     for attempt in range(retries+1):
         try:
@@ -715,7 +710,7 @@ if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
                 print("X: SUCCESS" if ok_x else "X: FAILED")
             if BUFFER_PROFILE_LI and linkedin_text:
                 time.sleep(3)
-                li_post = f"{linkedin_text}\n\nLink in first comment ↓"
+                li_post = f"{linkedin_text}\n\nFollow @TheLedgerWire for daily AI & Finance intel. Free newsletter -> theledgerwire.com"
                 ok_li   = post_to_buffer(li_post,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn",first_comment=LI_FIRST_COMMENT)
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
     exit(0)
@@ -745,7 +740,8 @@ if x_char_count(tweet_text) > 280:
     print("ERROR: Tweet over 280 — exiting")
     exit(1)
 
-generate_news_card(headline1, headline2, img_keyword, support_lines, hook_text)
+generate_news_card(headline1, headline2, img_keyword, support_lines, hook_text,
+                   story_context=f"{STORY_TITLE} {STORY_SUMMARY}")
 
 if BUFFER_API_KEY and GITHUB_TOKEN:
     pushed = push_to_github("card.png",GITHUB_TOKEN,REPO,IMAGE_PATH)
@@ -756,7 +752,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
             print("X: SUCCESS" if ok_x else "X: FAILED")
         if BUFFER_PROFILE_LI:
             time.sleep(3)
-            li_post = f"{linkedin_text}\n\nLink in first comment ↓"
+            li_post = f"{linkedin_text}\n\nFollow @TheLedgerWire for daily AI & Finance intel. Free newsletter -> theledgerwire.com"
             ok_li   = post_to_buffer(li_post,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn",first_comment=LI_FIRST_COMMENT)
             print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
     else:
