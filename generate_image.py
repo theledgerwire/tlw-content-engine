@@ -49,7 +49,7 @@ PHOTO_FALLBACKS = [
     "artificial intelligence robot",
 ]
 
-LI_FIRST_COMMENT = "If you're into AI & finance, you'll love The Ledger Wire — a free weekly newsletter that breaks it all down. Subscribe now -> theledgerwire.com"
+LI_FIRST_COMMENT = "Get this decoded every Wednesday, free → theledgerwire.com | The Ledger Wire — AI & Finance intelligence for professionals."
 
 print(f"=== TLW v14 === CARD_TYPE: {CARD_TYPE}")
 
@@ -75,7 +75,7 @@ Reply in this EXACT format:
 
 TIER: [1 or 2]
 TWEET: [Morning Brew style, STRICTLY under 220 chars, curiosity gap, never explain full story, end with -> theledgerwire.com #AI #Finance]
-LINKEDIN: [Morning Brew style, ONE punchy opener, 2-3 short paragraphs, end with question, NO URLs. Keep it under 800 chars total.]
+LINKEDIN: [Morning Brew style, ONE punchy opener, 2-3 short paragraphs, end with question. NO URLs anywhere in the text — not even theledgerwire.com. The link goes in the first comment automatically. Keep it under 800 chars total.]
 H1: [1-3 words MAX, shocking stat or number, abbreviations only, no asterisks. GOOD: $60B. / 30,000 jobs. BAD: $60 Billion]
 H2: [2-4 words, company + what happened. GOOD: Anthropic. Going public. / Oracle. 6am email.]
 HOOK: [2-5 words, bottom closer, curiosity gap. GOOD: No ticker. Yet. / Stock went up 4%.]
@@ -316,17 +316,69 @@ def fetch_unsplash(keyword):
         print(f"Unsplash exception [{keyword}]: {e}")
         return None
 
+# Country/company specific keyword overrides
+# When a story is about a specific country or company,
+# prepend targeted keywords before generic fallbacks
+COUNTRY_KEYWORDS = {
+    "korea":     ["south korea seoul skyline", "korean flag city", "seoul korea night"],
+    "korean":    ["south korea seoul skyline", "korean flag city", "seoul korea night"],
+    "china":     ["shanghai skyline night", "china flag beijing", "hong kong skyline"],
+    "chinese":   ["shanghai skyline night", "china flag beijing", "hong kong skyline"],
+    "alibaba":   ["shanghai skyline night", "china tech office", "alibaba headquarters"],
+    "tencent":   ["hong kong skyline", "china tech shenzhen", "shanghai skyline"],
+    "baidu":     ["beijing china skyline", "china tech office", "shanghai night"],
+    "deepseek":  ["china tech office", "server room blue", "artificial intelligence chip"],
+    "japan":     ["tokyo skyline night", "japan flag mount fuji", "tokyo city lights"],
+    "japanese":  ["tokyo skyline night", "japan flag mount fuji", "tokyo city lights"],
+    "india":     ["mumbai skyline night", "india flag", "new delhi city"],
+    "european":  ["european parliament building", "euro currency coins", "frankfurt skyline"],
+    "sec":       ["courthouse steps washington", "federal building columns", "wall street bull"],
+    "lawsuit":   ["legal gavel courtroom", "courthouse steps", "law books gavel"],
+    "trial":     ["legal gavel courtroom", "courthouse steps", "justice scales"],
+    "fed":       ["federal reserve building washington", "us dollar bills", "wall street"],
+    "federal reserve": ["federal reserve building washington", "us dollar bills close up"],
+    "bitcoin":   ["bitcoin gold coin", "cryptocurrency digital", "bitcoin logo"],
+    "crypto":    ["cryptocurrency bitcoin coin", "blockchain digital", "bitcoin gold"],
+    "ethereum":  ["ethereum cryptocurrency", "crypto digital coins", "blockchain"],
+    "hack":      ["computer hacker dark screen", "keyboard code programming", "cybersecurity"],
+    "leak":      ["computer code screen dark", "keyboard programming", "hacker dark"],
+    "cyber":     ["cybersecurity lock digital", "computer hacker", "network security"],
+    "oil":       ["oil pipeline sunset", "oil refinery night", "crude oil barrels"],
+    "energy":    ["oil refinery night", "solar panels field", "power plant energy"],
+    "space":     ["rocket launch nasa", "astronaut space earth", "space shuttle launch"],
+    "nasa":      ["rocket launch nasa", "astronaut space earth", "moon surface"],
+    "rocket":    ["rocket launch fire", "spacex rocket", "nasa rocket launch"],
+    "amazon":    ["amazon warehouse interior", "amazon delivery boxes", "jeff bezos"],
+    "google":    ["google headquarters building", "google logo office", "tech campus"],
+    "microsoft": ["microsoft headquarters", "windows logo tech", "microsoft office building"],
+    "apple":     ["apple store glass", "apple headquarters campus", "iphone product"],
+    "tesla":     ["tesla electric car", "tesla factory", "electric vehicle charging"],
+    "openai":    ["artificial intelligence robot", "chatgpt computer screen", "ai neural network"],
+    "anthropic": ["artificial intelligence claude", "ai computer code", "machine learning"],
+    "nvidia":    ["gpu graphics card", "nvidia chip semiconductor", "ai chip processor"],
+}
+
+def get_country_keywords(keyword):
+    """Check if keyword matches any country/company and return specific photo keywords."""
+    kw_lower = keyword.lower()
+    for trigger, replacements in COUNTRY_KEYWORDS.items():
+        if trigger in kw_lower:
+            print(f"Country/company match: [{trigger}] → {replacements[0]}")
+            return replacements
+    return []
+
 def get_photo(keyword):
     """
-    3-tier photo search:
-    1. Pexels (primary — best finance/business library)
-    2. Unsplash (secondary fallback)
-    3. None → navy card
-    Try keyword first, then fallbacks for each source.
+    3-tier photo search with country/company detection:
+    1. Country/company specific keywords (if detected)
+    2. Pexels — primary source
+    3. Unsplash — secondary fallback
+    4. None → navy card
     """
-    keywords_to_try = [keyword] + PHOTO_FALLBACKS
+    country_kws = get_country_keywords(keyword)
+    keywords_to_try = [keyword] + country_kws + PHOTO_FALLBACKS
 
-    # Tier 1 — Pexels
+    # Tier 1 — Pexels (try country-specific first if detected)
     print("--- Trying Pexels ---")
     for kw in keywords_to_try:
         photo = fetch_pexels(kw)
@@ -588,22 +640,26 @@ def post_to_buffer(post_text, image_url, channel_id, api_key,
     def esc(s):
         return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
 
-    safe_text = esc(post_text)
-    cid       = channel_id.strip()
+    safe_text    = esc(post_text)
+    cid          = channel_id.strip()
+    safe_comment = esc(first_comment) if first_comment else ""
 
-    # Note: firstComment is NOT supported by Buffer API — removed
+    # Add firstComment block only for LinkedIn when comment provided
+    comment_block = f'firstComment: {{ text: "{safe_comment}" }},' if safe_comment else ""
+
     query = '''mutation CreatePost {
   createPost(input: {
     text: "%s",
     channelId: "%s",
     schedulingType: automatic,
     mode: addToQueue,
+    %s
     assets: { images: [{ url: "%s" }] }
   }) {
     ... on PostActionSuccess { post { id text } }
     ... on MutationError { message }
   }
-}''' % (safe_text, cid, image_url)
+}''' % (safe_text, cid, comment_block, image_url)
 
     for attempt in range(retries+1):
         try:
@@ -659,7 +715,7 @@ if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
                 print("X: SUCCESS" if ok_x else "X: FAILED")
             if BUFFER_PROFILE_LI and linkedin_text:
                 time.sleep(3)
-                li_post = f"{linkedin_text}\n\nGet this decoded every Wednesday, free -> theledgerwire.com"
+                li_post = f"{linkedin_text}\n\nLink in first comment ↓"
                 ok_li   = post_to_buffer(li_post,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn",first_comment=LI_FIRST_COMMENT)
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
     exit(0)
@@ -700,7 +756,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
             print("X: SUCCESS" if ok_x else "X: FAILED")
         if BUFFER_PROFILE_LI:
             time.sleep(3)
-            li_post = f"{linkedin_text}\n\nGet this decoded every Wednesday, free -> theledgerwire.com"
+            li_post = f"{linkedin_text}\n\nLink in first comment ↓"
             ok_li   = post_to_buffer(li_post,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn",first_comment=LI_FIRST_COMMENT)
             print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
     else:
