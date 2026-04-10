@@ -18,6 +18,7 @@ GITHUB_TOKEN      = os.environ.get("GITHUB_TOKEN", "")
 ANTHROPIC_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
 UNSPLASH_KEY      = os.environ.get("UNSPLASH_KEY", "")
 PEXELS_KEY        = os.environ.get("PEXELS_KEY", "")
+FAL_KEY           = os.environ.get("FAL_KEY", "")
 CARD_TYPE         = os.environ.get("CARD_TYPE", "news")
 WEEKLY_HEADLINES  = os.environ.get("WEEKLY_HEADLINES", "")
 IMAGE_KEYWORD     = os.environ.get("IMAGE_KEYWORD", "finance technology")
@@ -420,13 +421,103 @@ def get_country_keywords(keyword, story_context=""):
             return replacements
     return []
 
+# ── FLUX.1 AI IMAGE GENERATION ────────────────────────────────────
+def generate_flux_prompt(title, summary):
+    """Claude writes a story-specific Flux.1 image prompt."""
+    if not ANTHROPIC_KEY:
+        return None
+    try:
+        prompt = f"""You are an AI image director for The Ledger Wire, a finance and AI newsletter.
+
+Story: {title}
+Summary: {summary}
+
+Write a Flux.1 image generation prompt that:
+1. Visually represents THIS specific story
+2. Dark cinematic style, navy blue and gold tones
+3. No text, no logos, no faces
+4. Photorealistic, dramatic lighting
+5. Max 25 words
+
+Examples:
+- Bitcoin ETF: Wall Street trading floor at night, golden Bitcoin symbol glowing on screens, dramatic cinematic lighting, navy blue, photorealistic
+- AI jobs: Empty corporate office at night, vacant chairs, blue computer glow, dramatic shadows, cinematic, photorealistic
+- Fed rates: Federal Reserve neoclassical building columns, stormy dramatic sky, gold light, cinematic, photorealistic
+- Korea story: Seoul skyline at night, neon lights reflecting on glass, dramatic cinematic, navy blue gold tones
+- China tech: Shanghai skyline night, futuristic towers, dramatic lighting, navy blue gold, cinematic, photorealistic
+- Crypto: Gold Bitcoin coin dramatic spotlight, dark reflective surface, bokeh background, cinematic, photorealistic
+- Space/NASA: Rocket launch at night, dramatic fire glow, dark sky, cinematic, photorealistic
+- Layoffs: Empty corporate office night, vacant leather chairs, blue screen glow, dramatic shadows
+
+Reply with ONLY the image prompt, nothing else. No quotes, no explanation."""
+
+        r = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 100,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=30
+        )
+        if r.status_code == 200:
+            img_prompt = r.json()["content"][0]["text"].strip().strip('"')
+            print(f"Flux prompt: {img_prompt}")
+            return img_prompt
+    except Exception as e:
+        print(f"Flux prompt error: {e}")
+    return None
+
+def fetch_flux_image(img_prompt):
+    """Generate image via Flux.1 Pro on fal.ai."""
+    if not FAL_KEY or not img_prompt:
+        return None, None
+    try:
+        full_prompt = img_prompt + ", dark cinematic, navy blue gold tones, no text, no logos, photorealistic"
+        r = requests.post(
+            "https://fal.run/fal-ai/flux-pro/v1.1",
+            headers={"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"},
+            json={
+                "prompt": full_prompt,
+                "image_size": "square_hd",
+                "num_inference_steps": 28,
+                "guidance_scale": 3.5,
+                "num_images": 1,
+                "safety_tolerance": "2"
+            },
+            timeout=60
+        )
+        print(f"Flux.1: {r.status_code}")
+        if r.status_code == 200:
+            img_url  = r.json()["images"][0]["url"]
+            img_data = requests.get(img_url, timeout=30).content
+            print(f"Flux image: {img_url[:60]}...")
+            return process_photo(img_data), img_url
+        else:
+            print(f"Flux error: {r.text[:200]}")
+    except Exception as e:
+        print(f"Flux exception: {e}")
+    return None, None
+
 def get_photo(keyword, story_context="", used_images=None):
     if used_images is None:
         used_images = {}
-    country_kws    = get_country_keywords(keyword, story_context)
+
+    # Tier 1 — Flux.1 AI generated (story-specific, zero copyright)
+    if FAL_KEY:
+        print("--- Trying Flux.1 AI ---")
+        flux_prompt = generate_flux_prompt(
+            story_context.split(" ", 10)[0:10] and story_context or keyword,
+            story_context
+        )
+        photo, img_url = fetch_flux_image(flux_prompt)
+        if photo:
+            print("Flux.1 success")
+            return photo, img_url
+        print("Flux.1 failed — trying Pexels")
+
+    country_kws     = get_country_keywords(keyword, story_context)
     keywords_to_try = [keyword] + country_kws + PHOTO_FALLBACKS
 
-    # Tier 1 — Pexels
+    # Tier 2 — Pexels
     print("--- Trying Pexels ---")
     for kw in keywords_to_try:
         photo, img_url = fetch_pexels(kw, used_images)
@@ -434,7 +525,7 @@ def get_photo(keyword, story_context="", used_images=None):
             print(f"Pexels success: [{kw}]")
             return photo, img_url
 
-    # Tier 2 — Unsplash
+    # Tier 3 — Unsplash
     print("--- Trying Unsplash ---")
     for kw in keywords_to_try:
         photo, img_url = fetch_unsplash(kw, used_images)
@@ -653,7 +744,7 @@ def card_tweet_screenshot(tweet_text,label="THIS WEEK"):
     print("Card saved (tweet screenshot)")
 
 # ── GENERATE CARD ─────────────────────────────────────────────────
-def generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None):
+def generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None,story_title="",story_summary=""):
     if used_images is None:
         used_images={}
     photo,img_url=get_photo(keyword,story_context,used_images)
