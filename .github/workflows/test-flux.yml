@@ -1,0 +1,39 @@
+name: TLW Flux Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-flux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pillow requests
+
+      - name: Install fonts
+        run: sudo apt-get install -y fonts-liberation
+
+      - name: Run Flux test
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}
+        run: python test_flux.py
+
+      - name: Upload generated card
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flux-test-card
+          path: |
+            flux_test.jpg
+            flux_card_test.png
+          retention-days: 3
