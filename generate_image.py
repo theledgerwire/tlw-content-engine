@@ -432,24 +432,29 @@ def generate_flux_prompt(title, summary):
 Story: {title}
 Summary: {summary}
 
-Write a Flux.1 image generation prompt that:
-1. Visually represents THIS specific story
-2. Dark cinematic style, navy blue and gold tones
-3. No text, no logos, no faces
-4. Photorealistic, dramatic lighting
-5. Max 25 words
+Write a Flux.1 image generation prompt. Rules:
+1. Be LITERAL and SPECIFIC to the story — describe exactly what object/place/thing represents it
+2. Always photorealistic news photography style — NOT artistic, NOT painterly, NOT fantasy
+3. Dark background, dramatic studio lighting, navy blue and gold color tones
+4. No text, no logos, no faces, no people
+5. Max 20 words
 
-Examples:
-- Bitcoin ETF: Wall Street trading floor at night, golden Bitcoin symbol glowing on screens, dramatic cinematic lighting, navy blue, photorealistic
-- AI jobs: Empty corporate office at night, vacant chairs, blue computer glow, dramatic shadows, cinematic, photorealistic
-- Fed rates: Federal Reserve neoclassical building columns, stormy dramatic sky, gold light, cinematic, photorealistic
-- Korea story: Seoul skyline at night, neon lights reflecting on glass, dramatic cinematic, navy blue gold tones
-- China tech: Shanghai skyline night, futuristic towers, dramatic lighting, navy blue gold, cinematic, photorealistic
-- Crypto: Gold Bitcoin coin dramatic spotlight, dark reflective surface, bokeh background, cinematic, photorealistic
-- Space/NASA: Rocket launch at night, dramatic fire glow, dark sky, cinematic, photorealistic
-- Layoffs: Empty corporate office night, vacant leather chairs, blue screen glow, dramatic shadows
+LITERAL examples — copy this style exactly:
+- Battery/EV story: "Electric vehicle battery cells close up, blue glow, dark background, dramatic lighting, photorealistic"
+- Bitcoin/Crypto: "Gold Bitcoin coin on dark surface, spotlight from above, bokeh background, photorealistic"
+- China tech company: "Shanghai skyline at night through glass window, city lights, dark foreground, photorealistic"
+- AI chips: "Nvidia GPU graphics card on dark surface, blue circuit glow, dramatic lighting, photorealistic"
+- Bank/finance: "Federal Reserve building columns at night, gold light, dark sky, photorealistic"
+- Layoffs/jobs: "Empty office chairs at night, blue computer screens, dark room, photorealistic"
+- SoftBank/Japan: "Tokyo skyline at night through glass, neon reflections, dark foreground, photorealistic"
+- TSMC/semiconductors: "Silicon wafer chip close up, blue light, dark background, dramatic, photorealistic"
+- Battery/CATL: "Lithium battery pack glowing blue, dark industrial background, dramatic lighting, photorealistic"
+- Energy/oil: "Oil pipeline at sunset, dramatic sky, cinematic, photorealistic"
 
-Reply with ONLY the image prompt, nothing else. No quotes, no explanation."""
+NEVER use: horses, warriors, abstract art, mythology, fantasy elements, animals unrelated to story.
+ALWAYS use: real objects, real places, real technology that directly relates to the story.
+
+Reply with ONLY the prompt. No quotes, no explanation."""
 
         r = requests.post(
             "https://api.anthropic.com/v1/messages",
@@ -471,7 +476,7 @@ def fetch_flux_image(img_prompt):
     if not FAL_KEY or not img_prompt:
         return None, None
     try:
-        full_prompt = img_prompt + ", dark cinematic, navy blue gold tones, no text, no logos, photorealistic"
+        full_prompt = img_prompt + ", photorealistic news photography, 8K, sharp focus, no text, no watermarks, no logos, professional studio lighting"
         r = requests.post(
             "https://fal.run/fal-ai/flux-pro/v1.1",
             headers={"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"},
