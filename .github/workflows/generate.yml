@@ -52,6 +52,7 @@ jobs:
           BUFFER_PROFILE_LI: ${{ secrets.BUFFER_PROFILE_LI }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
           PEXELS_KEY: ${{ secrets.PEXELS_KEY }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           STORY_TITLE: ${{ github.event.inputs.story_title }}
