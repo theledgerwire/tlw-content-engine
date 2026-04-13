@@ -22,6 +22,53 @@ FAL_KEY           = os.environ.get("FAL_KEY", "")
 CARD_TYPE         = os.environ.get("CARD_TYPE", "news")
 WEEKLY_HEADLINES  = os.environ.get("WEEKLY_HEADLINES", "")
 IMAGE_KEYWORD     = os.environ.get("IMAGE_KEYWORD", "finance technology")
+PREVIEW_MODE      = os.environ.get("PREVIEW_MODE", "0") == "1"
+FORCE_STYLE       = os.environ.get("FORCE_STYLE", "").lower().strip()  # set to "dark"/"vivid"/"warm" to override random
+
+# ── STYLE VARIANTS ────────────────────────────────────────────────
+# Weights control how often each style fires (must sum to 100)
+STYLE_VARIANTS = [
+    {
+        "name":        "dark",
+        "weight":       60,
+        "flux_style":  "dark background, dramatic studio lighting, navy blue and gold color tones",
+        "brightness":   0.62,
+        "saturation":   0.85,
+        "gradient_opacity": 1.0,   # full navy overlay — current behaviour
+    },
+    {
+        "name":        "vivid",
+        "weight":       20,
+        "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting",
+        "brightness":   0.88,
+        "saturation":   1.30,
+        "gradient_opacity": 0.45,  # lighter overlay so colour shows through
+    },
+    {
+        "name":        "warm",
+        "weight":       20,
+        "flux_style":  "warm rich tones, deep amber and teal color palette, bright cinematic lighting, premium editorial feel",
+        "brightness":   0.82,
+        "saturation":   1.20,
+        "gradient_opacity": 0.55,
+    },
+]
+
+def pick_style():
+    # FORCE_STYLE override — set env var to lock a specific style
+    if FORCE_STYLE:
+        for s in STYLE_VARIANTS:
+            if s["name"] == FORCE_STYLE:
+                print(f"Style FORCED: {s['name']}")
+                return s
+        print(f"FORCE_STYLE '{FORCE_STYLE}' not recognised — falling back to random")
+    weights = [s["weight"] for s in STYLE_VARIANTS]
+    chosen  = random.choices(STYLE_VARIANTS, weights=weights, k=1)[0]
+    print(f"Style variant: {chosen['name']}")
+    return chosen
+
+# Pick once per run so every function uses the same style
+ACTIVE_STYLE = pick_style()
 
 # ── BASE64 DECODE inputs from Make.com ────────────────────────────
 def _decode(val):
@@ -141,7 +188,28 @@ def save_used_image(img_url, used_images):
     except Exception as e:
         print(f"Could not save used image: {e}")
 
-print(f"=== TLW v15 === CARD_TYPE: {CARD_TYPE}")
+print(f"=== TLW v16 === CARD_TYPE: {CARD_TYPE} | Style: {ACTIVE_STYLE[chr(39)+'name'+chr(39)]} | Preview: {PREVIEW_MODE}")
+
+# ── PREVIEW MODE — generate all 3 style variants locally, no posting ─
+if PREVIEW_MODE:
+    import sys
+    test_title   = STORY_TITLE or "Fed holds rates as inflation fears mount"
+    test_summary = STORY_SUMMARY or "Federal Reserve kept interest rates unchanged, citing persistent inflation"
+    print("PREVIEW MODE — generating all 3 style variants...")
+    for variant in STYLE_VARIANTS:
+        vname = variant["name"]
+        print(f"\n--- Rendering style: {vname} ---")
+        flux_prompt = generate_flux_prompt(test_title, test_summary, style=variant)
+        photo, img_url = fetch_flux_image(flux_prompt) if FAL_KEY and flux_prompt else (None, None)
+        if photo:
+            gradient_photo = apply_gradient(photo, style=variant)
+            out_path = f"preview_{vname}.png"
+            gradient_photo.save(out_path, "PNG")
+            print(f"Saved: {out_path}")
+        else:
+            print(f"Flux failed for {vname} — check FAL_KEY")
+    print("\nPreview complete. Check preview_dark.png / preview_vivid.png / preview_warm.png")
+    sys.exit(0)
 print(f"Title: {STORY_TITLE[:60]}...")
 
 # ── TWEET CHAR COUNT ──────────────────────────────────────────────
@@ -336,8 +404,10 @@ LINKEDIN: [professional witty version, ends with engagement question, NO URLs an
         return None
 
 # ── PHOTO PROCESSING ──────────────────────────────────────────────
-def process_photo(img_data):
+def process_photo(img_data, style=None):
     from PIL import ImageEnhance
+    if style is None:
+        style = ACTIVE_STYLE
     photo  = Image.open(BytesIO(img_data)).convert("RGB")
     pw, ph = photo.size
     scale  = max(W/pw, H/ph)
@@ -346,8 +416,8 @@ def process_photo(img_data):
     left   = (nw-W)//2
     top    = (nh-H)//2
     photo  = photo.crop((left, top, left+W, top+H))
-    photo  = ImageEnhance.Color(photo).enhance(0.85)
-    photo  = ImageEnhance.Brightness(photo).enhance(0.62)
+    photo  = ImageEnhance.Color(photo).enhance(style["saturation"])
+    photo  = ImageEnhance.Brightness(photo).enhance(style["brightness"])
     return photo
 
 def fetch_pexels(keyword, used_images):
@@ -422,8 +492,10 @@ def get_country_keywords(keyword, story_context=""):
     return []
 
 # ── FLUX.1 AI IMAGE GENERATION ────────────────────────────────────
-def generate_flux_prompt(title, summary):
+def generate_flux_prompt(title, summary, style=None):
     """Claude writes a story-specific Flux.1 image prompt."""
+    if style is None:
+        style = ACTIVE_STYLE
     if not ANTHROPIC_KEY:
         return None
     try:
@@ -435,7 +507,7 @@ Summary: {summary}
 Write a Flux.1 image generation prompt. Rules:
 1. Be LITERAL and SPECIFIC to the story — describe exactly what object/place/thing represents it
 2. Always photorealistic news photography style — NOT artistic, NOT painterly, NOT fantasy
-3. Dark background, dramatic studio lighting, navy blue and gold color tones
+3. Use this specific visual style: {style["flux_style"]}
 4. No text, no logos, no faces, no people
 5. Max 20 words
 
@@ -511,7 +583,8 @@ def get_photo(keyword, story_context="", used_images=None):
         print("--- Trying Flux.1 AI ---")
         flux_prompt = generate_flux_prompt(
             story_context.split(" ", 10)[0:10] and story_context or keyword,
-            story_context
+            story_context,
+            style=ACTIVE_STYLE
         )
         photo, img_url = fetch_flux_image(flux_prompt)
         if photo:
@@ -542,17 +615,20 @@ def get_photo(keyword, story_context="", used_images=None):
     return None, None
 
 # ── GRADIENT ──────────────────────────────────────────────────────
-def apply_gradient(img, start=0.30):
+def apply_gradient(img, start=0.30, style=None):
+    if style is None:
+        style = ACTIVE_STYLE
+    op = style["gradient_opacity"]  # 1.0 = full dark overlay, 0.45 = light/colourful
     grad = Image.new("RGBA",(W,H),(0,0,0,0))
     gd   = ImageDraw.Draw(grad)
     for y in range(int(H*start),H):
         t = float(y-H*start)/float(H*(1-start))
         t = max(0.0,min(1.0,t))
-        a = int(255*t**0.78)
+        a = int(255*t**0.78 * op)
         gd.line([(0,y),(W,y)],fill=(10,22,40,a))
     for y in range(0,88):
         t = 1-(y/88)
-        a = int(55*t**0.55)
+        a = int(55*t**0.55 * op)
         gd.line([(0,y),(W,y)],fill=(10,22,40,a))
     return Image.alpha_composite(img.convert("RGBA"),grad).convert("RGB")
 
