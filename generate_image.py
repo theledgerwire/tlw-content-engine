@@ -1,10 +1,12 @@
-# TLW v15
+# TLW v16
 # - Base64 decode for story title/summary (fixes Make.com JSON errors)
 # - LinkedIn URL stripped from body (algorithm fix)
 # - Photo dedup — tracks used URLs in GitHub, falls back to navy if repeat
 # - Pexels primary, Unsplash secondary, navy fallback
 # - Country/company keyword detection
 # - Weekly tweet screenshot cards (Tuesday/Friday)
+# - Style variants: dark (60%) / vivid (20%) / warm (20%) — FORCE_STYLE env to override
+# - PREVIEW_MODE: generates all 3 variants locally without posting
 import os, re, time, random, requests, base64, json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -507,21 +509,34 @@ Summary: {summary}
 Write a Flux.1 image generation prompt. Rules:
 1. Be LITERAL and SPECIFIC to the story — describe exactly what object/place/thing represents it
 2. Always photorealistic news photography style — NOT artistic, NOT painterly, NOT fantasy
-3. Use this specific visual style: {style["flux_style"]}
+3. CRITICAL — match this exact visual style: {style["flux_style"]}
 4. No text, no logos, no faces, no people
 5. Max 20 words
 
-LITERAL examples — copy this style exactly:
-- Battery/EV story: "Electric vehicle battery cells close up, blue glow, dark background, dramatic lighting, photorealistic"
-- Bitcoin/Crypto: "Gold Bitcoin coin on dark surface, spotlight from above, bokeh background, photorealistic"
-- China tech company: "Shanghai skyline at night through glass window, city lights, dark foreground, photorealistic"
+Style-matched examples — use the example set that matches your assigned style:
+
+DARK style examples:
+- Battery/EV: "Electric vehicle battery cells close up, blue glow, dark background, dramatic lighting, photorealistic"
+- Bitcoin: "Gold Bitcoin coin on dark surface, spotlight from above, bokeh background, photorealistic"
 - AI chips: "Nvidia GPU graphics card on dark surface, blue circuit glow, dramatic lighting, photorealistic"
 - Bank/finance: "Federal Reserve building columns at night, gold light, dark sky, photorealistic"
-- Layoffs/jobs: "Empty office chairs at night, blue computer screens, dark room, photorealistic"
-- SoftBank/Japan: "Tokyo skyline at night through glass, neon reflections, dark foreground, photorealistic"
-- TSMC/semiconductors: "Silicon wafer chip close up, blue light, dark background, dramatic, photorealistic"
-- Battery/CATL: "Lithium battery pack glowing blue, dark industrial background, dramatic lighting, photorealistic"
-- Energy/oil: "Oil pipeline at sunset, dramatic sky, cinematic, photorealistic"
+- Layoffs: "Empty office chairs at night, blue computer screens, dark room, photorealistic"
+
+VIVID style examples:
+- Battery/EV: "Electric vehicle charging station, vivid electric blue and green neon glow, high contrast, photorealistic"
+- Bitcoin: "Gold Bitcoin coin, vibrant emerald and electric blue background, bold dramatic lighting, photorealistic"
+- AI chips: "Nvidia GPU circuit board, bold electric blue and green light trails, vivid high contrast, photorealistic"
+- Bank/finance: "Wall Street building facade, bold blue sky, vivid sunlight, high contrast cityscape, photorealistic"
+- Layoffs: "Modern office space flooded with vivid blue light, bold colour contrast, photorealistic"
+
+WARM style examples:
+- Battery/EV: "Electric vehicle battery cells, warm amber and teal industrial glow, cinematic lighting, photorealistic"
+- Bitcoin: "Gold Bitcoin coin, rich amber light, deep teal background, premium editorial, photorealistic"
+- AI chips: "GPU chip close up, warm amber circuit glow, deep teal background, cinematic, photorealistic"
+- Bank/finance: "Federal Reserve building, warm golden sunset light, rich amber sky, cinematic, photorealistic"
+- Layoffs: "Empty office, warm amber desk lamps, teal window light at dusk, cinematic, photorealistic"
+
+Your assigned style is: {style["name"].upper()}. Use ONLY that style's examples as reference.
 
 NEVER use: horses, warriors, abstract art, mythology, fantasy elements, animals unrelated to story.
 ALWAYS use: real objects, real places, real technology that directly relates to the story.
