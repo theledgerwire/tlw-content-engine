@@ -190,7 +190,8 @@ def save_used_image(img_url, used_images):
     except Exception as e:
         print(f"Could not save used image: {e}")
 
-print(f"=== TLW v16 === CARD_TYPE: {CARD_TYPE} | Style: {ACTIVE_STYLE[chr(39)+'name'+chr(39)]} | Preview: {PREVIEW_MODE}")
+_sname = ACTIVE_STYLE["name"]
+print(f"=== TLW v16 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE}")
 
 # ── PREVIEW MODE — generate all 3 style variants locally, no posting ─
 if PREVIEW_MODE:
