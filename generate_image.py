@@ -901,106 +901,121 @@ def card_tweet_screenshot(tweet_text,label="THIS WEEK"):
 # ── CAROUSEL: STAT CARD (Slide 2) ────────────────────────────────
 def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value):
     """Light background stat card for carousel slide 2."""
-    img  = Image.new("RGB", (W, H), (247, 247, 245))
+    img  = Image.new("RGB", (W, H), (255, 255, 255))   # pure white
     draw = ImageDraw.Draw(img)
-    PAD  = 72
+    PAD  = 80
+
+    # Gold left accent bar
+    draw.rectangle([(0, 0), (10, H)], fill=GOLD)
 
     # Top label
-    lf = ImageFont.truetype(FONT_BOLD, 22)
-    draw.text((PAD, 72), "THE LEDGER WIRE", font=lf, fill=(170, 170, 170))
-    draw.rectangle([(PAD, 108), (PAD + 200, 112)], fill=GOLD)
+    lf = ImageFont.truetype(FONT_BOLD, 24)
+    draw.text((PAD, 64), "THE LEDGER WIRE", font=lf, fill=(200, 200, 200))
+    draw.text((PAD, 100), "BY THE NUMBERS", font=lf, fill=(150, 150, 150))
 
-    # Big stat number
-    sf = ImageFont.truetype(FONT_BOLD, 160)
+    # Big stat number — navy, very large
+    sf  = ImageFont.truetype(FONT_BOLD, 180)
+    slh = draw.textbbox((0, 0), "Ag", font=sf)[3]
     lines = wrap_text(draw, stat_number, sf, W - PAD * 2)
-    y = 150
-    lh = draw.textbbox((0, 0), "Ag", font=sf)[3]
+    y = 160
     for line in lines[:2]:
         draw.text((PAD, y), line, font=sf, fill=NAVY)
-        y += lh + 4
+        y += slh + 4
 
-    # Stat label
-    slf = ImageFont.truetype(FONT_BOLD, 40)
-    draw.text((PAD, y + 10), stat_label, font=slf, fill=(83, 74, 183))
-    y += draw.textbbox((0, 0), "Ag", font=slf)[3] + 24
+    # Stat label — purple, bold
+    slf = ImageFont.truetype(FONT_BOLD, 44)
+    slb = draw.textbbox((0, 0), "Ag", font=slf)[3]
+    draw.text((PAD, y + 12), stat_label, font=slf, fill=(83, 74, 183))
+    y += slb + 28
 
-    # Context line
-    cf = ImageFont.truetype(FONT_REG, 28)
+    # Context sentence — grey
+    cf  = ImageFont.truetype(FONT_REG, 30)
+    clh = draw.textbbox((0, 0), "Ag", font=cf)[3]
     ctx_lines = wrap_text(draw, stat_context, cf, W - PAD * 2)
     for cl in ctx_lines[:2]:
-        draw.text((PAD, y), cl, font=cf, fill=(100, 100, 100))
-        y += draw.textbbox((0, 0), "Ag", font=cf)[3] + 6
+        draw.text((PAD, y), cl, font=cf, fill=(120, 120, 120))
+        y += clh + 8
 
-    # Comparison bars — only if both values provided
+    # Comparison bars
     if compare_a_label and compare_b_label:
-        y += 40
-        bar_lf  = ImageFont.truetype(FONT_REG,  26)
-        bar_vf  = ImageFont.truetype(FONT_BOLD, 26)
-        bar_w   = W - PAD * 2
-        bar_h   = 20
-        bar_gap = 70
+        y += 50
+        bar_lf = ImageFont.truetype(FONT_REG,  28)
+        bar_vf = ImageFont.truetype(FONT_BOLD, 28)
+        bar_w  = W - PAD * 2
+        bar_h  = 24
 
-        # Bar A — grey (smaller/reference)
-        draw.text((PAD, y), compare_a_label, font=bar_lf, fill=(140, 140, 140))
+        # Bar A — grey reference
+        draw.text((PAD, y), compare_a_label, font=bar_lf, fill=(160, 160, 160))
         av = draw.textbbox((0, 0), compare_a_value, font=bar_vf)
-        draw.text((W - PAD - (av[2] - av[0]), y), compare_a_value, font=bar_vf, fill=NAVY)
-        y += 36
-        draw.rectangle([(PAD, y), (PAD + int(bar_w * 0.28), y + bar_h)], fill=(200, 200, 200))
-        y += bar_h + bar_gap
+        draw.text((W - PAD - (av[2] - av[0]), y), compare_a_value, font=bar_vf, fill=(160, 160, 160))
+        y += 38
+        draw.rounded_rectangle([(PAD, y), (PAD + int(bar_w * 0.28), y + bar_h)], radius=6, fill=(210, 210, 210))
+        y += bar_h + 56
 
-        # Bar B — purple (hero)
+        # Bar B — purple hero
         draw.text((PAD, y), compare_b_label, font=bar_lf, fill=(83, 74, 183))
         bv = draw.textbbox((0, 0), compare_b_value, font=bar_vf)
         draw.text((W - PAD - (bv[2] - bv[0]), y), compare_b_value, font=bar_vf, fill=(83, 74, 183))
-        y += 36
-        draw.rectangle([(PAD, y), (PAD + int(bar_w * 0.88), y + bar_h)], fill=(83, 74, 183))
+        y += 38
+        draw.rounded_rectangle([(PAD, y), (PAD + int(bar_w * 0.88), y + bar_h)], radius=6, fill=(83, 74, 183))
 
     # Footer
-    ff = ImageFont.truetype(FONT_REG, 22)
-    draw.text((PAD, H - 56), "theledgerwire.com", font=ff, fill=(180, 180, 180))
-    draw.rectangle([(0, H - 8), (W, H)], fill=GOLD)
+    ff = ImageFont.truetype(FONT_REG, 24)
+    draw.text((PAD, H - 60), "theledgerwire.com", font=ff, fill=(200, 200, 200))
+    draw.rectangle([(0, H - 10), (W, H)], fill=GOLD)
     img.save("carousel_2.png", "PNG")
     print("Carousel slide 2 saved")
 
 # ── CAROUSEL: CONTEXT CARD (Slide 3) ─────────────────────────────
 def card_carousel_context(fact1, fact2, fact3, h1, h2):
-    """Light off-white context card for carousel slide 3."""
-    img  = Image.new("RGB", (W, H), (249, 249, 247))
+    """Light white context card for carousel slide 3."""
+    img  = Image.new("RGB", (W, H), (255, 255, 255))   # pure white
     draw = ImageDraw.Draw(img)
-    PAD  = 72
+    PAD  = 80
 
     # Left gold accent bar
-    draw.rectangle([(0, 0), (8, H)], fill=GOLD)
+    draw.rectangle([(0, 0), (10, H)], fill=GOLD)
 
-    # Top label
-    lf = ImageFont.truetype(FONT_BOLD, 22)
-    draw.text((PAD, 72), "WHY IT MATTERS", font=lf, fill=(170, 170, 170))
+    # Top labels
+    lf = ImageFont.truetype(FONT_BOLD, 24)
+    draw.text((PAD, 64),  "THE LEDGER WIRE", font=lf, fill=(200, 200, 200))
+    draw.text((PAD, 100), "WHY IT MATTERS",  font=lf, fill=(150, 150, 150))
 
-    # Story reference
-    h2f = ImageFont.truetype(FONT_BOLD, 38)
-    ref = f"{h1} — {h2}"
-    draw.text((PAD, 130), ref, font=h2f, fill=NAVY)
-    draw.rectangle([(PAD, 186), (PAD + 120, 190)], fill=GOLD)
+    # Story reference — navy bold
+    h2f  = ImageFont.truetype(FONT_BOLD, 52)
+    h2lh = draw.textbbox((0, 0), "Ag", font=h2f)[3]
+    ref  = f"{h1} — {h2}"
+    ref_lines = wrap_text(draw, ref, h2f, W - PAD * 2)
+    y = 164
+    for rl in ref_lines[:2]:
+        draw.text((PAD, y), rl, font=h2f, fill=NAVY)
+        y += h2lh + 6
+    y += 16
+    draw.rectangle([(PAD, y), (PAD + 140, y + 5)], fill=GOLD)
+    y += 44
 
-    # Three bullet facts
-    bf  = ImageFont.truetype(FONT_REG,  34)
-    blh = draw.textbbox((0, 0), "Ag", font=bf)[3]
-    bar_colors = [GOLD, (83, 74, 183), (29, 158, 117)]
-    facts = [f for f in [fact1, fact2, fact3] if f]
-    y = 260
+    # Three bullet facts — larger text, more breathing room
+    bf       = ImageFont.truetype(FONT_REG,  38)
+    bfb      = ImageFont.truetype(FONT_BOLD, 38)
+    blh      = draw.textbbox((0, 0), "Ag", font=bf)[3]
+    colors   = [GOLD, (83, 74, 183), (29, 158, 117)]
+    facts    = [f for f in [fact1, fact2, fact3] if f]
+
     for i, fact in enumerate(facts[:3]):
-        color = bar_colors[i]
-        draw.rectangle([(PAD, y + 4), (PAD + 5, y + blh - 4)], fill=color)
-        fact_lines = wrap_text(draw, fact, bf, W - PAD * 2 - 28)
+        col        = colors[i]
+        bar_top    = y + 6
+        bar_bottom = y + blh - 6
+        draw.rounded_rectangle([(PAD, bar_top), (PAD + 7, bar_bottom)], radius=3, fill=col)
+        fact_lines = wrap_text(draw, fact, bf, W - PAD * 2 - 36)
         for fl in fact_lines[:2]:
-            draw.text((PAD + 28, y), fl, font=bf, fill=(40, 40, 40))
-            y += blh + 6
-        y += 40
+            draw.text((PAD + 36, y), fl, font=bf, fill=(45, 45, 45))
+            y += blh + 8
+        y += 52   # generous gap between facts
 
     # Footer
-    ff = ImageFont.truetype(FONT_REG, 22)
-    draw.text((PAD, H - 56), "theledgerwire.com", font=ff, fill=(180, 180, 180))
-    draw.rectangle([(0, H - 8), (W, H)], fill=GOLD)
+    ff = ImageFont.truetype(FONT_REG, 24)
+    draw.text((PAD, H - 60), "theledgerwire.com", font=ff, fill=(200, 200, 200))
+    draw.rectangle([(0, H - 10), (W, H)], fill=GOLD)
     img.save("carousel_3.png", "PNG")
     print("Carousel slide 3 saved")
 
