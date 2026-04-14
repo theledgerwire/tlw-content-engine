@@ -42,17 +42,17 @@ STYLE_VARIANTS = [
         "name":        "vivid",
         "weight":       20,
         "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting, NO dark backgrounds, bright and colourful",
-        "brightness":   0.97,
-        "saturation":   1.40,
-        "gradient_opacity": 0.18,  # very light overlay — let colour breathe
+        "brightness":   0.88,
+        "saturation":   1.35,
+        "gradient_opacity": 0.35,  # middle ground — colour shows but stock photos stay protected
     },
     {
         "name":        "warm",
         "weight":       20,
         "flux_style":  "warm rich tones, deep amber and teal color palette, bright cinematic lighting, premium editorial feel, well-lit, NOT dark",
-        "brightness":   0.92,
-        "saturation":   1.25,
-        "gradient_opacity": 0.28,  # light overlay — colour shows through
+        "brightness":   0.85,
+        "saturation":   1.22,
+        "gradient_opacity": 0.42,  # middle ground — warm but not washed out
     },
 ]
 
@@ -735,14 +735,11 @@ def draw_footer(draw):
 
 # ── TEXT SHADOW HELPER ───────────────────────────────────────────
 def draw_text_shadow(draw, pos, text, font, fill, shadow_color=(0,0,0), offset=3, blur_passes=2):
-    """Draw text with a drop shadow for legibility on bright images."""
+    """Draw text with a subtle single-offset drop shadow for legibility."""
     x, y = pos
-    for dx in range(-blur_passes, blur_passes + 1):
-        for dy in range(-blur_passes, blur_passes + 1):
-            if dx == 0 and dy == 0:
-                continue
-            draw.text((x + dx * offset // blur_passes, y + dy * offset // blur_passes),
-                      text, font=font, fill=shadow_color)
+    # Single clean shadow — just draw offset text in dark, then real text on top
+    shadow = (0, 0, 0, 160)
+    draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0))
     draw.text((x, y), text, font=font, fill=fill)
 
 # ── CARD: PHOTO ───────────────────────────────────────────────────
@@ -750,11 +747,11 @@ def card_with_photo(img,h1,h2,hook=""):
     draw=ImageDraw.Draw(img)
     PAD=56
     MTW=W-PAD-40
-    draw.rectangle([(0,0),(6,H-72)],fill=GOLD)
+    draw.rectangle([(0,0),(4,H-58)],fill=GOLD)   # thinner accent bar
     logo_f=ImageFont.truetype(FONT_BOLD,20)
     lb=draw.textbbox((0,0),"THE LEDGER WIRE",font=logo_f)
     draw_text_shadow(draw,(PAD,36),"THE LEDGER WIRE",logo_f,WHITE,shadow_color=(0,0,0),offset=2)
-    draw.rectangle([(PAD,60),(PAD+lb[2]-lb[0],63)],fill=GOLD)
+    draw.rectangle([(PAD,60),(PAD+lb[2]-lb[0],62)],fill=GOLD)   # thinner underline
     h1_f=ImageFont.truetype(FONT_BOLD,90)
     h2_f=ImageFont.truetype(FONT_BOLD,46)
     hook_f=ImageFont.truetype(FONT_BOLD,46)
