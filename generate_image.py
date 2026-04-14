@@ -298,17 +298,16 @@ KEYWORD: [3-5 word SPECIFIC photo search. Match visually:
 - Space/NASA → "rocket launch nasa"
 - AI company → "artificial intelligence neural network"
 NEVER use: "finance technology" / "business" / "woman laptop"]
-CAROUSEL: [yes ONLY if story has a specific dollar figure, percentage move, or data comparison worth visualising. Otherwise: no]
-STAT_NUMBER: [the single most impactful number e.g. $2.2B or 40% or 30,000 — only if CAROUSEL:yes]
-STAT_LABEL: [3-5 words describing the stat e.g. "Hong Kong IPO raise" — only if CAROUSEL:yes]
-STAT_CONTEXT: [one sentence of context for the stat — only if CAROUSEL:yes]
-COMPARE_A_LABEL: [label for comparison bar A e.g. "2024 avg HK IPO" — only if CAROUSEL:yes]
-COMPARE_A_VALUE: [value for bar A e.g. $800M — only if CAROUSEL:yes]
-COMPARE_B_LABEL: [label for comparison bar B e.g. "Victory Giant ask" — only if CAROUSEL:yes]
-COMPARE_B_VALUE: [value for bar B — only if CAROUSEL:yes]
-FACT1: [first context bullet, max 12 words — only if CAROUSEL:yes]
-FACT2: [second context bullet, max 12 words — only if CAROUSEL:yes]
-FACT3: [third context bullet, max 12 words — only if CAROUSEL:yes]"""
+STAT_NUMBER: [the single most impactful number from the story e.g. $2.2B or 40% or 30,000. If no specific number exists use the H1 value]
+STAT_LABEL: [3-5 words describing what the stat represents]
+STAT_CONTEXT: [one punchy sentence explaining the stat in context]
+COMPARE_A_LABEL: [label for smaller/reference comparison e.g. "Industry average" — if no comparison exists write "Before"]
+COMPARE_A_VALUE: [value for reference bar — estimate if needed]
+COMPARE_B_LABEL: [label for hero comparison e.g. "Oracle-Bloom deal" — if no comparison write "Now"]
+COMPARE_B_VALUE: [value for hero bar]
+FACT1: [first key fact, max 12 words]
+FACT2: [second key fact, max 12 words]
+FACT3: [third key fact, max 12 words]"""
 
     try:
         r = requests.post(
@@ -330,7 +329,7 @@ FACT3: [third context bullet, max 12 words — only if CAROUSEL:yes]"""
         current_val = []
         for line in text.split("\n"):
             matched = False
-            for key in ["TIER","TWEET","LINKEDIN","H1","H2","HOOK","LINES","KEYWORD","CAROUSEL","STAT_NUMBER","STAT_LABEL","STAT_CONTEXT","COMPARE_A_LABEL","COMPARE_A_VALUE","COMPARE_B_LABEL","COMPARE_B_VALUE","FACT1","FACT2","FACT3"]:
+            for key in ["TIER","TWEET","LINKEDIN","H1","H2","HOOK","LINES","KEYWORD","STAT_NUMBER","STAT_LABEL","STAT_CONTEXT","COMPARE_A_LABEL","COMPARE_A_VALUE","COMPARE_B_LABEL","COMPARE_B_VALUE","FACT1","FACT2","FACT3"]:
                 if line.startswith(f"{key}:"):
                     if current_key:
                         result[current_key] = "\n".join(current_val).strip()
@@ -1231,10 +1230,9 @@ img_keyword   =claude_result.get("keyword",  IMAGE_KEYWORD)
 story_tier    =claude_result.get("tier",     "1").strip()
 support_lines =[l.strip() for l in lines_raw.split("|") if l.strip()][:3]
 
-# Carousel fields
-do_carousel     = claude_result.get("carousel",        "no").strip().lower() == "yes"
-stat_number     = claude_result.get("stat_number",     "")
-stat_label      = claude_result.get("stat_label",      "")
+# Carousel fields — always populated by Claude for Tier 1
+stat_number     = claude_result.get("stat_number",     headline1)
+stat_label      = claude_result.get("stat_label",      headline2)
 stat_context    = claude_result.get("stat_context",    "")
 compare_a_label = claude_result.get("compare_a_label", "")
 compare_a_value = claude_result.get("compare_a_value", "")
@@ -1244,12 +1242,21 @@ fact1           = claude_result.get("fact1",            "")
 fact2           = claude_result.get("fact2",            "")
 fact3           = claude_result.get("fact3",            "")
 
-# Check daily carousel limit
-if do_carousel and not carousel_allowed():
-    print("Carousel daily limit reached — falling back to single card")
-    do_carousel = False
+# Stat number guard — only carousel if stat contains a real number/symbol
+def has_real_stat(val):
+    """Returns True if stat_number contains $, %, or a digit — i.e. is a real data point."""
+    return bool(re.search(r'[$%\d]', val)) if val else False
 
-print(f"Tier:{story_tier} | Carousel:{do_carousel} | Tweet:{x_char_count(tweet_text)} chars")
+stat_is_real = has_real_stat(stat_number)
+
+# Carousel fires automatically for Tier 1 stories WITH a real stat, within daily limit
+do_carousel = (story_tier == "1") and stat_is_real and carousel_allowed()
+if story_tier == "1" and not stat_is_real:
+    print(f"Carousel skipped — no real stat found in: '{stat_number}'")
+if story_tier == "1" and stat_is_real and not carousel_allowed():
+    print("Carousel daily limit reached (2/day) — falling back to single card")
+
+print(f"Tier:{story_tier} | Stat:'{stat_number}' | RealStat:{stat_is_real} | Carousel:{do_carousel} | Tweet:{x_char_count(tweet_text)} chars")
 
 # Hard strip URLs from LinkedIn one more time
 linkedin_text = strip_urls(linkedin_text)
@@ -1274,41 +1281,47 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
             save_used_image(used_img_url,used_images)
         time.sleep(5)
 
-        # ── X: always single card ──────────────────────────────────
-        if BUFFER_PROFILE_X:
-            ok_x=post_to_buffer(tweet_text,RAW_URL,BUFFER_PROFILE_X,BUFFER_API_KEY,"X")
-            print("X: SUCCESS" if ok_x else "X: FAILED")
+        # ── Build carousel slides once if needed ──────────────────
+        carousel_urls = []
+        if do_carousel and stat_number:
+            card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value)
+            card_carousel_context(fact1, fact2, fact3, headline1, headline2)
+            ts    = int(time.time())
+            path2 = f"cards/carousel2_{ts}.png"
+            path3 = f"cards/carousel3_{ts}.png"
+            url2  = f"https://raw.githubusercontent.com/{REPO}/main/{path2}"
+            url3  = f"https://raw.githubusercontent.com/{REPO}/main/{path3}"
+            ok2   = push_to_github("carousel_2.png", GITHUB_TOKEN, REPO, path2)
+            time.sleep(2)
+            ok3   = push_to_github("carousel_3.png", GITHUB_TOKEN, REPO, path3)
+            time.sleep(2)
+            if ok2 and ok3:
+                carousel_urls = [RAW_URL, url2, url3]
+                print(f"Carousel slides pushed: {len(carousel_urls)} slides ready")
+            else:
+                print("Carousel slide push failed — all platforms fall back to single card")
 
-        # ── LinkedIn: carousel if eligible, else single card ───────
+        # ── X: carousel if slides ready, else single card ──────────
+        if BUFFER_PROFILE_X:
+            time.sleep(3)
+            if carousel_urls:
+                ok_x = post_to_buffer_carousel(tweet_text, carousel_urls, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
+                print("X carousel: SUCCESS" if ok_x else "X carousel: FAILED")
+            else:
+                ok_x = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
+                print("X: SUCCESS" if ok_x else "X: FAILED")
+
+        # ── LinkedIn: carousel if slides ready, else single card ────
         if BUFFER_PROFILE_LI:
             time.sleep(3)
-            if do_carousel and stat_number:
-                # Build slides 2 and 3
-                card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value)
-                card_carousel_context(fact1, fact2, fact3, headline1, headline2)
-                # Push slides 2 and 3 to GitHub
-                ts = int(time.time())
-                path2 = f"cards/carousel2_{ts}.png"
-                path3 = f"cards/carousel3_{ts}.png"
-                url2  = f"https://raw.githubusercontent.com/{REPO}/main/{path2}"
-                url3  = f"https://raw.githubusercontent.com/{REPO}/main/{path3}"
-                ok2   = push_to_github("carousel_2.png", GITHUB_TOKEN, REPO, path2)
-                time.sleep(2)
-                ok3   = push_to_github("carousel_3.png", GITHUB_TOKEN, REPO, path3)
-                time.sleep(3)
-                if ok2 and ok3:
-                    ok_li = post_to_buffer_carousel(linkedin_text, [RAW_URL, url2, url3], BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
-                    print("LinkedIn carousel: SUCCESS" if ok_li else "LinkedIn carousel: FAILED")
-                    if ok_li:
-                        # Update daily carousel counter
-                        _, current_count = load_carousel_count()
-                        save_carousel_count(current_count + 1)
-                else:
-                    print("Carousel slide push failed — falling back to single card")
-                    ok_li=post_to_buffer(linkedin_text,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn")
-                    print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
+            if carousel_urls:
+                ok_li = post_to_buffer_carousel(linkedin_text, carousel_urls, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
+                print("LinkedIn carousel: SUCCESS" if ok_li else "LinkedIn carousel: FAILED")
+                if ok_li:
+                    _, current_count = load_carousel_count()
+                    save_carousel_count(current_count + 1)
             else:
-                ok_li=post_to_buffer(linkedin_text,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn")
+                ok_li = post_to_buffer(linkedin_text, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
     else:
         print("FAILED: GitHub push failed")
