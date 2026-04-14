@@ -1,11 +1,8 @@
-# TLW v16
-# - Base64 decode for story title/summary (fixes Make.com JSON errors)
-# - LinkedIn URL stripped from body (algorithm fix)
-# - Photo dedup — tracks used URLs in GitHub, falls back to navy if repeat
-# - Pexels primary, Unsplash secondary, navy fallback
-# - Country/company keyword detection
-# - Weekly tweet screenshot cards (Tuesday/Friday)
+# TLW v17
 # - Style variants: dark (60%) / vivid (20%) / warm (20%) — FORCE_STYLE env to override
+# - Carousel: Slide 1 (existing card) + Slide 2 (stat) + Slide 3 (context) for Tier 1 stories
+# - Carousel posted to LinkedIn only (2 per day max) — X stays single card
+# - Daily carousel counter stored in data/carousel_count.json
 # - PREVIEW_MODE: generates all 3 variants locally without posting
 import os, re, time, random, requests, base64, json
 from PIL import Image, ImageDraw, ImageFont
@@ -16,6 +13,7 @@ from datetime import datetime
 BUFFER_API_KEY    = os.environ.get("BUFFER_API_KEY", "")
 BUFFER_PROFILE_X  = os.environ.get("BUFFER_PROFILE_X", "")
 BUFFER_PROFILE_LI = os.environ.get("BUFFER_PROFILE_LI", "")
+BUFFER_PROFILE_IG = os.environ.get("BUFFER_PROFILE_IG", "")  # Instagram — optional
 GITHUB_TOKEN      = os.environ.get("GITHUB_TOKEN", "")
 ANTHROPIC_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
 UNSPLASH_KEY      = os.environ.get("UNSPLASH_KEY", "")
@@ -23,7 +21,9 @@ PEXELS_KEY        = os.environ.get("PEXELS_KEY", "")
 FAL_KEY           = os.environ.get("FAL_KEY", "")
 CARD_TYPE         = os.environ.get("CARD_TYPE", "news")
 WEEKLY_HEADLINES  = os.environ.get("WEEKLY_HEADLINES", "")
-IMAGE_KEYWORD     = os.environ.get("IMAGE_KEYWORD", "finance technology")
+IMAGE_KEYWORD       = os.environ.get("IMAGE_KEYWORD", "finance technology")
+CAROUSEL_MAX_DAILY  = 2          # max carousel posts per day
+CAROUSEL_COUNT_PATH = "data/carousel_count.json"
 PREVIEW_MODE      = os.environ.get("PREVIEW_MODE", "0") == "1"
 FORCE_STYLE       = os.environ.get("FORCE_STYLE", "").lower().strip()  # set to "dark"/"vivid"/"warm" to override random
 
@@ -41,18 +41,18 @@ STYLE_VARIANTS = [
     {
         "name":        "vivid",
         "weight":       20,
-        "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting",
-        "brightness":   0.88,
-        "saturation":   1.30,
-        "gradient_opacity": 0.45,  # lighter overlay so colour shows through
+        "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting, NO dark backgrounds, bright and colourful",
+        "brightness":   0.97,
+        "saturation":   1.40,
+        "gradient_opacity": 0.18,  # very light overlay — let colour breathe
     },
     {
         "name":        "warm",
         "weight":       20,
-        "flux_style":  "warm rich tones, deep amber and teal color palette, bright cinematic lighting, premium editorial feel",
-        "brightness":   0.82,
-        "saturation":   1.20,
-        "gradient_opacity": 0.55,
+        "flux_style":  "warm rich tones, deep amber and teal color palette, bright cinematic lighting, premium editorial feel, well-lit, NOT dark",
+        "brightness":   0.92,
+        "saturation":   1.25,
+        "gradient_opacity": 0.28,  # light overlay — colour shows through
     },
 ]
 
@@ -191,7 +191,43 @@ def save_used_image(img_url, used_images):
         print(f"Could not save used image: {e}")
 
 _sname = ACTIVE_STYLE["name"]
-print(f"=== TLW v16 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE}")
+# ── CAROUSEL DAILY COUNTER ────────────────────────────────────────
+CAROUSEL_COUNT_URL = f"https://raw.githubusercontent.com/{REPO}/main/{CAROUSEL_COUNT_PATH}?t={int(time.time())}"
+
+def load_carousel_count():
+    try:
+        r = requests.get(CAROUSEL_COUNT_URL, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            today = datetime.now().strftime("%Y-%m-%d")
+            return data.get("date") == today, data.get("count", 0)
+    except Exception as e:
+        print(f"Could not load carousel count: {e}")
+    return False, 0
+
+def save_carousel_count(count):
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        payload_data = json.dumps({"date": today, "count": count}, indent=2)
+        encoded = base64.b64encode(payload_data.encode()).decode()
+        headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+        get_r = requests.get(f"https://api.github.com/repos/{REPO}/contents/{CAROUSEL_COUNT_PATH}", headers=headers, timeout=10)
+        sha = get_r.json().get("sha") if get_r.status_code == 200 else None
+        payload = {"message": "Update carousel count", "content": encoded, "branch": "main"}
+        if sha:
+            payload["sha"] = sha
+        put_r = requests.put(f"https://api.github.com/repos/{REPO}/contents/{CAROUSEL_COUNT_PATH}", headers=headers, json=payload, timeout=15)
+        print(f"Carousel count saved ({count}): {put_r.status_code}")
+    except Exception as e:
+        print(f"Could not save carousel count: {e}")
+
+def carousel_allowed():
+    same_day, count = load_carousel_count()
+    if not same_day:
+        return True   # new day — reset
+    return count < CAROUSEL_MAX_DAILY
+
+print(f"=== TLW v17 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE}")
 
 # ── PREVIEW MODE — generate all 3 style variants locally, no posting ─
 if PREVIEW_MODE:
@@ -261,13 +297,24 @@ KEYWORD: [3-5 word SPECIFIC photo search. Match visually:
 - Oil/energy → "oil pipeline sunset"
 - Space/NASA → "rocket launch nasa"
 - AI company → "artificial intelligence neural network"
-NEVER use: "finance technology" / "business" / "woman laptop"]"""
+NEVER use: "finance technology" / "business" / "woman laptop"]
+CAROUSEL: [yes ONLY if story has a specific dollar figure, percentage move, or data comparison worth visualising. Otherwise: no]
+STAT_NUMBER: [the single most impactful number e.g. $2.2B or 40% or 30,000 — only if CAROUSEL:yes]
+STAT_LABEL: [3-5 words describing the stat e.g. "Hong Kong IPO raise" — only if CAROUSEL:yes]
+STAT_CONTEXT: [one sentence of context for the stat — only if CAROUSEL:yes]
+COMPARE_A_LABEL: [label for comparison bar A e.g. "2024 avg HK IPO" — only if CAROUSEL:yes]
+COMPARE_A_VALUE: [value for bar A e.g. $800M — only if CAROUSEL:yes]
+COMPARE_B_LABEL: [label for comparison bar B e.g. "Victory Giant ask" — only if CAROUSEL:yes]
+COMPARE_B_VALUE: [value for bar B — only if CAROUSEL:yes]
+FACT1: [first context bullet, max 12 words — only if CAROUSEL:yes]
+FACT2: [second context bullet, max 12 words — only if CAROUSEL:yes]
+FACT3: [third context bullet, max 12 words — only if CAROUSEL:yes]"""
 
     try:
         r = requests.post(
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-6", "max_tokens": 900, "messages": [{"role": "user", "content": prompt}]},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1200, "messages": [{"role": "user", "content": prompt}]},
             timeout=30
         )
         print(f"Claude: {r.status_code}")
@@ -283,7 +330,7 @@ NEVER use: "finance technology" / "business" / "woman laptop"]"""
         current_val = []
         for line in text.split("\n"):
             matched = False
-            for key in ["TIER","TWEET","LINKEDIN","H1","H2","HOOK","LINES","KEYWORD"]:
+            for key in ["TIER","TWEET","LINKEDIN","H1","H2","HOOK","LINES","KEYWORD","CAROUSEL","STAT_NUMBER","STAT_LABEL","STAT_CONTEXT","COMPARE_A_LABEL","COMPARE_A_VALUE","COMPARE_B_LABEL","COMPARE_B_VALUE","FACT1","FACT2","FACT3"]:
                 if line.startswith(f"{key}:"):
                     if current_key:
                         result[current_key] = "\n".join(current_val).strip()
@@ -634,18 +681,29 @@ def get_photo(keyword, story_context="", used_images=None):
 def apply_gradient(img, start=0.30, style=None):
     if style is None:
         style = ACTIVE_STYLE
-    op = style["gradient_opacity"]  # 1.0 = full dark overlay, 0.45 = light/colourful
+    op        = style["gradient_opacity"]
+    sname     = style["name"]
+    # Dark style: deep navy overlay. Vivid/warm: near-black but much lighter
+    if sname == "dark":
+        overlay_rgb = (10, 22, 40)
+        top_rgb     = (10, 22, 40)
+    elif sname == "vivid":
+        overlay_rgb = (0, 10, 30)   # near-black, not navy
+        top_rgb     = (0, 10, 30)
+    else:  # warm
+        overlay_rgb = (15, 10, 5)   # very dark warm tint
+        top_rgb     = (15, 10, 5)
     grad = Image.new("RGBA",(W,H),(0,0,0,0))
     gd   = ImageDraw.Draw(grad)
     for y in range(int(H*start),H):
         t = float(y-H*start)/float(H*(1-start))
         t = max(0.0,min(1.0,t))
         a = int(255*t**0.78 * op)
-        gd.line([(0,y),(W,y)],fill=(10,22,40,a))
+        gd.line([(0,y),(W,y)],fill=(*overlay_rgb,a))
     for y in range(0,88):
         t = 1-(y/88)
         a = int(55*t**0.55 * op)
-        gd.line([(0,y),(W,y)],fill=(10,22,40,a))
+        gd.line([(0,y),(W,y)],fill=(*top_rgb,a))
     return Image.alpha_composite(img.convert("RGBA"),grad).convert("RGB")
 
 def wrap_text(draw,text,font,max_width):
@@ -840,6 +898,152 @@ def card_tweet_screenshot(tweet_text,label="THIS WEEK"):
     img.save("card.png","PNG")
     print("Card saved (tweet screenshot)")
 
+# ── CAROUSEL: STAT CARD (Slide 2) ────────────────────────────────
+def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value):
+    """Light background stat card for carousel slide 2."""
+    img  = Image.new("RGB", (W, H), (247, 247, 245))
+    draw = ImageDraw.Draw(img)
+    PAD  = 72
+
+    # Top label
+    lf = ImageFont.truetype(FONT_BOLD, 22)
+    draw.text((PAD, 72), "THE LEDGER WIRE", font=lf, fill=(170, 170, 170))
+    draw.rectangle([(PAD, 108), (PAD + 200, 112)], fill=GOLD)
+
+    # Big stat number
+    sf = ImageFont.truetype(FONT_BOLD, 160)
+    lines = wrap_text(draw, stat_number, sf, W - PAD * 2)
+    y = 150
+    lh = draw.textbbox((0, 0), "Ag", font=sf)[3]
+    for line in lines[:2]:
+        draw.text((PAD, y), line, font=sf, fill=NAVY)
+        y += lh + 4
+
+    # Stat label
+    slf = ImageFont.truetype(FONT_BOLD, 40)
+    draw.text((PAD, y + 10), stat_label, font=slf, fill=(83, 74, 183))
+    y += draw.textbbox((0, 0), "Ag", font=slf)[3] + 24
+
+    # Context line
+    cf = ImageFont.truetype(FONT_REG, 28)
+    ctx_lines = wrap_text(draw, stat_context, cf, W - PAD * 2)
+    for cl in ctx_lines[:2]:
+        draw.text((PAD, y), cl, font=cf, fill=(100, 100, 100))
+        y += draw.textbbox((0, 0), "Ag", font=cf)[3] + 6
+
+    # Comparison bars — only if both values provided
+    if compare_a_label and compare_b_label:
+        y += 40
+        bar_lf  = ImageFont.truetype(FONT_REG,  26)
+        bar_vf  = ImageFont.truetype(FONT_BOLD, 26)
+        bar_w   = W - PAD * 2
+        bar_h   = 20
+        bar_gap = 70
+
+        # Bar A — grey (smaller/reference)
+        draw.text((PAD, y), compare_a_label, font=bar_lf, fill=(140, 140, 140))
+        av = draw.textbbox((0, 0), compare_a_value, font=bar_vf)
+        draw.text((W - PAD - (av[2] - av[0]), y), compare_a_value, font=bar_vf, fill=NAVY)
+        y += 36
+        draw.rectangle([(PAD, y), (PAD + int(bar_w * 0.28), y + bar_h)], fill=(200, 200, 200))
+        y += bar_h + bar_gap
+
+        # Bar B — purple (hero)
+        draw.text((PAD, y), compare_b_label, font=bar_lf, fill=(83, 74, 183))
+        bv = draw.textbbox((0, 0), compare_b_value, font=bar_vf)
+        draw.text((W - PAD - (bv[2] - bv[0]), y), compare_b_value, font=bar_vf, fill=(83, 74, 183))
+        y += 36
+        draw.rectangle([(PAD, y), (PAD + int(bar_w * 0.88), y + bar_h)], fill=(83, 74, 183))
+
+    # Footer
+    ff = ImageFont.truetype(FONT_REG, 22)
+    draw.text((PAD, H - 56), "theledgerwire.com", font=ff, fill=(180, 180, 180))
+    draw.rectangle([(0, H - 8), (W, H)], fill=GOLD)
+    img.save("carousel_2.png", "PNG")
+    print("Carousel slide 2 saved")
+
+# ── CAROUSEL: CONTEXT CARD (Slide 3) ─────────────────────────────
+def card_carousel_context(fact1, fact2, fact3, h1, h2):
+    """Light off-white context card for carousel slide 3."""
+    img  = Image.new("RGB", (W, H), (249, 249, 247))
+    draw = ImageDraw.Draw(img)
+    PAD  = 72
+
+    # Left gold accent bar
+    draw.rectangle([(0, 0), (8, H)], fill=GOLD)
+
+    # Top label
+    lf = ImageFont.truetype(FONT_BOLD, 22)
+    draw.text((PAD, 72), "WHY IT MATTERS", font=lf, fill=(170, 170, 170))
+
+    # Story reference
+    h2f = ImageFont.truetype(FONT_BOLD, 38)
+    ref = f"{h1} — {h2}"
+    draw.text((PAD, 130), ref, font=h2f, fill=NAVY)
+    draw.rectangle([(PAD, 186), (PAD + 120, 190)], fill=GOLD)
+
+    # Three bullet facts
+    bf  = ImageFont.truetype(FONT_REG,  34)
+    blh = draw.textbbox((0, 0), "Ag", font=bf)[3]
+    bar_colors = [GOLD, (83, 74, 183), (29, 158, 117)]
+    facts = [f for f in [fact1, fact2, fact3] if f]
+    y = 260
+    for i, fact in enumerate(facts[:3]):
+        color = bar_colors[i]
+        draw.rectangle([(PAD, y + 4), (PAD + 5, y + blh - 4)], fill=color)
+        fact_lines = wrap_text(draw, fact, bf, W - PAD * 2 - 28)
+        for fl in fact_lines[:2]:
+            draw.text((PAD + 28, y), fl, font=bf, fill=(40, 40, 40))
+            y += blh + 6
+        y += 40
+
+    # Footer
+    ff = ImageFont.truetype(FONT_REG, 22)
+    draw.text((PAD, H - 56), "theledgerwire.com", font=ff, fill=(180, 180, 180))
+    draw.rectangle([(0, H - 8), (W, H)], fill=GOLD)
+    img.save("carousel_3.png", "PNG")
+    print("Carousel slide 3 saved")
+
+# ── CAROUSEL: CTA CARD (Slide 4 — Instagram only) ─────────────────
+def card_carousel_cta():
+    """Dark CTA card for carousel slide 4."""
+    img  = Image.new("RGB", (W, H), NAVY)
+    draw = ImageDraw.Draw(img)
+    cx   = W // 2
+
+    # Circle logo
+    r = 110
+    draw.ellipse([(cx - r, 340), (cx + r, 340 + r * 2)], fill=GOLD)
+    lf = ImageFont.truetype(FONT_BOLD, 56)
+    lb = draw.textbbox((0, 0), "TLW", font=lf)
+    draw.text((cx - (lb[2] - lb[0]) // 2, 340 + r - (lb[3] - lb[1]) // 2), "TLW", font=lf, fill=NAVY)
+
+    # Tagline
+    tf  = ImageFont.truetype(FONT_BOLD, 52)
+    tag = "AI & Finance,"
+    tb  = draw.textbbox((0, 0), tag, font=tf)
+    draw.text((cx - (tb[2] - tb[0]) // 2, 620), tag, font=tf, fill=WHITE)
+    tag2 = "decoded daily."
+    tb2  = draw.textbbox((0, 0), tag2, font=tf)
+    draw.text((cx - (tb2[2] - tb2[0]) // 2, 686), tag2, font=tf, fill=GOLD)
+
+    # Handle
+    hf  = ImageFont.truetype(FONT_REG, 34)
+    hb  = draw.textbbox((0, 0), "@LedgerWire", font=hf)
+    draw.text((cx - (hb[2] - hb[0]) // 2, 780), "@LedgerWire", font=hf, fill=(150, 150, 180))
+
+    # CTA pill
+    pill_w, pill_h, pill_r = 420, 72, 36
+    pill_x = cx - pill_w // 2
+    pill_y = 870
+    draw.rounded_rectangle([(pill_x, pill_y), (pill_x + pill_w, pill_y + pill_h)], radius=pill_r, fill=GOLD)
+    wf  = ImageFont.truetype(FONT_BOLD, 28)
+    wb  = draw.textbbox((0, 0), "theledgerwire.com", font=wf)
+    draw.text((cx - (wb[2] - wb[0]) // 2, pill_y + (pill_h - (wb[3] - wb[1])) // 2), "theledgerwire.com", font=wf, fill=NAVY)
+
+    img.save("carousel_4.png", "PNG")
+    print("Carousel slide 4 saved (CTA)")
+
 # ── GENERATE CARD ─────────────────────────────────────────────────
 def generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None,story_title="",story_summary=""):
     if used_images is None:
@@ -867,6 +1071,51 @@ def push_to_github(image_path,token,repo,file_path):
     return put_r.status_code in [200,201]
 
 # ── BUFFER ────────────────────────────────────────────────────────
+def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform="", retries=2):
+    """Post a multi-image carousel to Buffer (LinkedIn / Instagram)."""
+    print(f"Posting carousel to Buffer {platform} ({len(image_urls)} slides)...")
+    time.sleep(3)
+    def esc(s):
+        return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
+    safe_text = esc(post_text)
+    cid       = channel_id.strip()
+    imgs_gql  = ", ".join([f'{{ url: "{u}" }}' for u in image_urls])
+    query = (
+        'mutation CreatePost {\n'
+        '  createPost(input: {\n'
+        '    text: "%s",\n'
+        '    channelId: "%s",\n'
+        '    schedulingType: automatic,\n'
+        '    mode: addToQueue,\n'
+        '    assets: { images: [%s] }\n'
+        '  }) {\n'
+        '    ... on PostActionSuccess { post { id text } }\n'
+        '    ... on MutationError { message }\n'
+        '  }\n'
+        '}'
+    ) % (safe_text, cid, imgs_gql)
+    for attempt in range(retries + 1):
+        try:
+            r = requests.post(
+                "https://api.buffer.com",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"query": query}, timeout=30
+            )
+            print(f"Buffer {platform} carousel: {r.status_code} — {r.text[:200]}")
+            data      = r.json()
+            post_data = data.get("data", {}).get("createPost", {})
+            if "errors" in data:
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if "message" in post_data and "post" not in post_data:
+                if attempt < retries: time.sleep(5); continue
+                return False
+            return r.status_code == 200
+        except Exception as e:
+            print(f"Buffer {platform} carousel exception: {e}")
+            if attempt < retries: time.sleep(5)
+    return False
+
 def post_to_buffer(post_text,image_url,channel_id,api_key,platform="",retries=2):
     print(f"Posting to Buffer {platform}...")
     time.sleep(3)
@@ -955,16 +1204,36 @@ img_keyword   =claude_result.get("keyword",  IMAGE_KEYWORD)
 story_tier    =claude_result.get("tier",     "1").strip()
 support_lines =[l.strip() for l in lines_raw.split("|") if l.strip()][:3]
 
+# Carousel fields
+do_carousel     = claude_result.get("carousel",        "no").strip().lower() == "yes"
+stat_number     = claude_result.get("stat_number",     "")
+stat_label      = claude_result.get("stat_label",      "")
+stat_context    = claude_result.get("stat_context",    "")
+compare_a_label = claude_result.get("compare_a_label", "")
+compare_a_value = claude_result.get("compare_a_value", "")
+compare_b_label = claude_result.get("compare_b_label", "")
+compare_b_value = claude_result.get("compare_b_value", "")
+fact1           = claude_result.get("fact1",            "")
+fact2           = claude_result.get("fact2",            "")
+fact3           = claude_result.get("fact3",            "")
+
+# Check daily carousel limit
+if do_carousel and not carousel_allowed():
+    print("Carousel daily limit reached — falling back to single card")
+    do_carousel = False
+
+print(f"Tier:{story_tier} | Carousel:{do_carousel} | Tweet:{x_char_count(tweet_text)} chars")
+
 # Hard strip URLs from LinkedIn one more time
 linkedin_text = strip_urls(linkedin_text)
 
-print(f"Tier:{story_tier} | Tweet:{x_char_count(tweet_text)} chars")
 if x_char_count(tweet_text)>280:
     print("ERROR: Tweet over 280 — exiting"); exit(1)
 
 # Load used images for dedup
 used_images=load_used_images()
 
+# Always build slide 1 (existing card)
 _,used_img_url=generate_news_card(
     headline1,headline2,img_keyword,support_lines,hook_text,
     story_context=f"{STORY_TITLE} {STORY_SUMMARY}",
@@ -974,17 +1243,46 @@ _,used_img_url=generate_news_card(
 if BUFFER_API_KEY and GITHUB_TOKEN:
     pushed=push_to_github("card.png",GITHUB_TOKEN,REPO,IMAGE_PATH)
     if pushed:
-        # Save used image URL to prevent reuse
         if used_img_url:
             save_used_image(used_img_url,used_images)
         time.sleep(5)
+
+        # ── X: always single card ──────────────────────────────────
         if BUFFER_PROFILE_X:
             ok_x=post_to_buffer(tweet_text,RAW_URL,BUFFER_PROFILE_X,BUFFER_API_KEY,"X")
             print("X: SUCCESS" if ok_x else "X: FAILED")
+
+        # ── LinkedIn: carousel if eligible, else single card ───────
         if BUFFER_PROFILE_LI:
             time.sleep(3)
-            ok_li=post_to_buffer(linkedin_text,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn")
-            print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
+            if do_carousel and stat_number:
+                # Build slides 2 and 3
+                card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value)
+                card_carousel_context(fact1, fact2, fact3, headline1, headline2)
+                # Push slides 2 and 3 to GitHub
+                ts = int(time.time())
+                path2 = f"cards/carousel2_{ts}.png"
+                path3 = f"cards/carousel3_{ts}.png"
+                url2  = f"https://raw.githubusercontent.com/{REPO}/main/{path2}"
+                url3  = f"https://raw.githubusercontent.com/{REPO}/main/{path3}"
+                ok2   = push_to_github("carousel_2.png", GITHUB_TOKEN, REPO, path2)
+                time.sleep(2)
+                ok3   = push_to_github("carousel_3.png", GITHUB_TOKEN, REPO, path3)
+                time.sleep(3)
+                if ok2 and ok3:
+                    ok_li = post_to_buffer_carousel(linkedin_text, [RAW_URL, url2, url3], BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
+                    print("LinkedIn carousel: SUCCESS" if ok_li else "LinkedIn carousel: FAILED")
+                    if ok_li:
+                        # Update daily carousel counter
+                        _, current_count = load_carousel_count()
+                        save_carousel_count(current_count + 1)
+                else:
+                    print("Carousel slide push failed — falling back to single card")
+                    ok_li=post_to_buffer(linkedin_text,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn")
+                    print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
+            else:
+                ok_li=post_to_buffer(linkedin_text,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn")
+                print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
     else:
         print("FAILED: GitHub push failed")
 else:
