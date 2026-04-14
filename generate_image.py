@@ -41,7 +41,7 @@ STYLE_VARIANTS = [
     {
         "name":        "vivid",
         "weight":       20,
-        "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting, NO dark backgrounds, bright and colourful",
+        "flux_style":  "real world scene, vivid natural daylight, electric blue sky or environment, bold high contrast lighting, bright and colourful, NOT CGI, NOT product render",
         "brightness":   0.88,
         "saturation":   1.35,
         "gradient_opacity": 0.35,  # middle ground — colour shows but stock photos stay protected
@@ -49,7 +49,7 @@ STYLE_VARIANTS = [
     {
         "name":        "warm",
         "weight":       20,
-        "flux_style":  "warm rich tones, deep amber and teal color palette, bright cinematic lighting, premium editorial feel, well-lit, NOT dark",
+        "flux_style":  "real world scene, warm golden hour daylight, amber sunlight and natural teal shadows, cinematic editorial feel, NOT CGI, NOT product render",
         "brightness":   0.85,
         "saturation":   1.22,
         "gradient_opacity": 0.42,  # middle ground — warm but not washed out
@@ -555,7 +555,7 @@ Summary: {summary}
 
 Write a Flux.1 image generation prompt. Rules:
 1. Be LITERAL and SPECIFIC to the story — describe exactly what object/place/thing represents it
-2. Always photorealistic news photography style — NOT artistic, NOT painterly, NOT fantasy
+2. Always photorealistic NEWS PHOTOGRAPHY style — real world scenes only. NOT CGI, NOT 3D render, NOT product photography, NOT advertising visual, NOT artistic, NOT painterly, NOT fantasy
 3. CRITICAL — match this exact visual style: {style["flux_style"]}
 4. No text, no logos, no faces, no people
 5. Max 20 words
@@ -570,18 +570,18 @@ DARK style examples:
 - Layoffs: "Empty office chairs at night, blue computer screens, dark room, photorealistic"
 
 VIVID style examples:
-- Battery/EV: "Electric vehicle charging station, vivid electric blue and green neon glow, high contrast, photorealistic"
-- Bitcoin: "Gold Bitcoin coin, vibrant emerald and electric blue background, bold dramatic lighting, photorealistic"
-- AI chips: "Nvidia GPU circuit board, bold electric blue and green light trails, vivid high contrast, photorealistic"
-- Bank/finance: "Wall Street building facade, bold blue sky, vivid sunlight, high contrast cityscape, photorealistic"
-- Layoffs: "Modern office space flooded with vivid blue light, bold colour contrast, photorealistic"
+- Battery/EV: "Electric vehicle charging at outdoor station, bright blue sky, vivid sunlight, high contrast, photorealistic"
+- Bitcoin: "Crypto trading floor screens, vivid blue and green displays, bright overhead lighting, photorealistic"
+- AI chips: "Semiconductor factory floor, vivid electric blue clean room lighting, high contrast, photorealistic"
+- Bank/finance: "Wall Street street level, bold blue sky, vivid sunlight, high contrast cityscape, photorealistic"
+- Layoffs: "Empty open plan office, vivid blue daylight through windows, bright contrast, photorealistic"
 
 WARM style examples:
-- Battery/EV: "Electric vehicle battery cells, warm amber and teal industrial glow, cinematic lighting, photorealistic"
-- Bitcoin: "Gold Bitcoin coin, rich amber light, deep teal background, premium editorial, photorealistic"
-- AI chips: "GPU chip close up, warm amber circuit glow, deep teal background, cinematic, photorealistic"
-- Bank/finance: "Federal Reserve building, warm golden sunset light, rich amber sky, cinematic, photorealistic"
-- Layoffs: "Empty office, warm amber desk lamps, teal window light at dusk, cinematic, photorealistic"
+- Battery/EV: "Electric vehicle charging station at golden hour, warm amber sunset light, cinematic, photorealistic"
+- Bitcoin: "Financial district street at golden hour, warm amber light on buildings, cinematic, photorealistic"
+- AI chips: "Server room corridor, warm amber emergency lighting, teal screen glow, cinematic, photorealistic"
+- Bank/finance: "Federal Reserve building at golden hour, warm amber sky, long shadows, cinematic, photorealistic"
+- Layoffs: "Empty office at dusk, warm amber desk lamps, teal twilight through windows, cinematic, photorealistic"
 
 Your assigned style is: {style["name"].upper()}. Use ONLY that style's examples as reference.
 
@@ -1254,6 +1254,7 @@ if story_tier == "1" and stat_is_real and not carousel_allowed():
     print("Carousel daily limit reached (2/day) — falling back to single card")
 
 print(f"Tier:{story_tier} | Stat:'{stat_number}' | RealStat:{stat_is_real} | Carousel:{do_carousel} | Tweet:{x_char_count(tweet_text)} chars")
+print(f"DEBUG carousel fields — stat_label:'{stat_label}' | fact1:'{fact1}' | fact2:'{fact2}'")
 
 # Hard strip URLs from LinkedIn one more time
 linkedin_text = strip_urls(linkedin_text)
