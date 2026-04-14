@@ -734,6 +734,18 @@ def draw_footer(draw):
     draw.text((PAD,fy),"THE LEDGER WIRE",font=url_f,fill=NAVY)
     draw.text((W-PAD-uw,fy),"theledgerwire.com",font=tag_f,fill=NAVY)
 
+# ── TEXT SHADOW HELPER ───────────────────────────────────────────
+def draw_text_shadow(draw, pos, text, font, fill, shadow_color=(0,0,0), offset=3, blur_passes=2):
+    """Draw text with a drop shadow for legibility on bright images."""
+    x, y = pos
+    for dx in range(-blur_passes, blur_passes + 1):
+        for dy in range(-blur_passes, blur_passes + 1):
+            if dx == 0 and dy == 0:
+                continue
+            draw.text((x + dx * offset // blur_passes, y + dy * offset // blur_passes),
+                      text, font=font, fill=shadow_color)
+    draw.text((x, y), text, font=font, fill=fill)
+
 # ── CARD: PHOTO ───────────────────────────────────────────────────
 def card_with_photo(img,h1,h2,hook=""):
     draw=ImageDraw.Draw(img)
@@ -742,7 +754,7 @@ def card_with_photo(img,h1,h2,hook=""):
     draw.rectangle([(0,0),(6,H-72)],fill=GOLD)
     logo_f=ImageFont.truetype(FONT_BOLD,20)
     lb=draw.textbbox((0,0),"THE LEDGER WIRE",font=logo_f)
-    draw.text((PAD,36),"THE LEDGER WIRE",font=logo_f,fill=WHITE)
+    draw_text_shadow(draw,(PAD,36),"THE LEDGER WIRE",logo_f,WHITE,shadow_color=(0,0,0),offset=2)
     draw.rectangle([(PAD,60),(PAD+lb[2]-lb[0],63)],fill=GOLD)
     h1_f=ImageFont.truetype(FONT_BOLD,90)
     h2_f=ImageFont.truetype(FONT_BOLD,46)
@@ -767,15 +779,15 @@ def card_with_photo(img,h1,h2,hook=""):
     draw.rectangle([(PAD,rule_y),(PAD+52,rule_y+4)],fill=GOLD)
     y=h1_y
     for line in h1_lines:
-        draw.text((PAD,y),line,font=h1_f,fill=WHITE); y+=h1_lh+4
+        draw_text_shadow(draw,(PAD,y),line,h1_f,WHITE,shadow_color=(0,0,0),offset=3); y+=h1_lh+4
     y=h2_y
     for line in h2_lines:
-        draw.text((PAD,y),line,font=h2_f,fill=GOLD); y+=h2_lh+4
+        draw_text_shadow(draw,(PAD,y),line,h2_f,GOLD,shadow_color=(0,0,0),offset=2); y+=h2_lh+4
     if hook_lines:
         y=hook_y
         for line in hook_lines:
-            draw.text((PAD,y),line,font=hook_f,fill=WHITE); y+=hook_lh+4
-    draw.text((PAD,src_y),"theledgerwire.com",font=src_f,fill=DGREY)
+            draw_text_shadow(draw,(PAD,y),line,hook_f,WHITE,shadow_color=(0,0,0),offset=2); y+=hook_lh+4
+    draw_text_shadow(draw,(PAD,src_y),"theledgerwire.com",src_f,DGREY,shadow_color=(0,0,0),offset=2)
     draw_footer(draw)
     img.save("card.png","PNG")
     print("Card saved (photo mode)")
@@ -910,8 +922,8 @@ def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, c
 
     # Top label
     lf = ImageFont.truetype(FONT_BOLD, 24)
-    draw.text((PAD, 64), "THE LEDGER WIRE", font=lf, fill=(200, 200, 200))
-    draw.text((PAD, 100), "BY THE NUMBERS", font=lf, fill=(150, 150, 150))
+    draw.text((PAD, 64), "THE LEDGER WIRE", font=lf, fill=GOLD)
+    draw.text((PAD, 100), "BY THE NUMBERS", font=lf, fill=(160, 160, 160))
 
     # Big stat number — navy, very large
     sf  = ImageFont.truetype(FONT_BOLD, 180)
@@ -961,7 +973,7 @@ def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, c
 
     # Footer
     ff = ImageFont.truetype(FONT_REG, 24)
-    draw.text((PAD, H - 60), "theledgerwire.com", font=ff, fill=(200, 200, 200))
+    draw.text((PAD, H - 60), "theledgerwire.com", font=ff, fill=GOLD)
     draw.rectangle([(0, H - 10), (W, H)], fill=GOLD)
     img.save("carousel_2.png", "PNG")
     print("Carousel slide 2 saved")
@@ -978,8 +990,8 @@ def card_carousel_context(fact1, fact2, fact3, h1, h2):
 
     # Top labels
     lf = ImageFont.truetype(FONT_BOLD, 24)
-    draw.text((PAD, 64),  "THE LEDGER WIRE", font=lf, fill=(200, 200, 200))
-    draw.text((PAD, 100), "WHY IT MATTERS",  font=lf, fill=(150, 150, 150))
+    draw.text((PAD, 64),  "THE LEDGER WIRE", font=lf, fill=GOLD)
+    draw.text((PAD, 100), "WHY IT MATTERS",  font=lf, fill=(160, 160, 160))
 
     # Story reference — navy bold
     h2f  = ImageFont.truetype(FONT_BOLD, 52)
@@ -1014,7 +1026,7 @@ def card_carousel_context(fact1, fact2, fact3, h1, h2):
 
     # Footer
     ff = ImageFont.truetype(FONT_REG, 24)
-    draw.text((PAD, H - 60), "theledgerwire.com", font=ff, fill=(200, 200, 200))
+    draw.text((PAD, H - 60), "theledgerwire.com", font=ff, fill=GOLD)
     draw.rectangle([(0, H - 10), (W, H)], fill=GOLD)
     img.save("carousel_3.png", "PNG")
     print("Carousel slide 3 saved")
