@@ -44,7 +44,7 @@ STYLE_VARIANTS = [
         "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting, NO dark backgrounds, bright and colourful",
         "brightness":   0.88,
         "saturation":   1.35,
-        "gradient_opacity": 0.55,  # stronger overlay — text readable over vivid CGI images
+        "gradient_opacity": 0.42,  # lighter overlay — photo colour shows through
     },
     {
         "name":        "warm",
@@ -555,7 +555,7 @@ Summary: {summary}
 
 Write a Flux.1 image generation prompt. Rules:
 1. Be LITERAL and SPECIFIC to the story — describe exactly what object/place/thing represents it
-2. {"Photorealistic news photography — NOT CGI, NOT 3D render, NOT product photography, real world scenes only." if style["name"] == "dark" else "Bold vivid high-impact image, colour-first, can be stylised."} NOT artistic, NOT painterly, NOT fantasy
+2. Photorealistic or bold stylised image that directly represents the story. NOT abstract art, NOT glitch art, NOT painterly, NOT fantasy
 3. CRITICAL — match this exact visual style: {style["flux_style"]}
 4. No text, no logos, no faces, no people
 5. Max 20 words
