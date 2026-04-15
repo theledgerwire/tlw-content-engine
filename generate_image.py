@@ -41,15 +41,15 @@ STYLE_VARIANTS = [
     {
         "name":        "vivid",
         "weight":       20,
-        "flux_style":  "real world scene, vivid natural daylight, electric blue sky or environment, bold high contrast lighting, bright and colourful, NOT CGI, NOT product render",
+        "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting, NO dark backgrounds, bright and colourful",
         "brightness":   0.88,
         "saturation":   1.35,
-        "gradient_opacity": 0.35,  # middle ground — colour shows but stock photos stay protected
+        "gradient_opacity": 0.55,  # stronger overlay — text readable over vivid CGI images
     },
     {
         "name":        "warm",
         "weight":       20,
-        "flux_style":  "real world scene, warm golden hour daylight, amber sunlight and natural teal shadows, cinematic editorial feel, NOT CGI, NOT product render",
+        "flux_style":  "warm rich tones, deep amber and teal color palette, bright cinematic lighting, premium editorial feel, well-lit, NOT dark",
         "brightness":   0.85,
         "saturation":   1.22,
         "gradient_opacity": 0.42,  # middle ground — warm but not washed out
@@ -555,7 +555,7 @@ Summary: {summary}
 
 Write a Flux.1 image generation prompt. Rules:
 1. Be LITERAL and SPECIFIC to the story — describe exactly what object/place/thing represents it
-2. Always photorealistic NEWS PHOTOGRAPHY style — real world scenes only. NOT CGI, NOT 3D render, NOT product photography, NOT advertising visual, NOT artistic, NOT painterly, NOT fantasy
+2. {"Photorealistic news photography — NOT CGI, NOT 3D render, NOT product photography, real world scenes only." if style["name"] == "dark" else "Bold vivid high-impact image, colour-first, can be stylised."} NOT artistic, NOT painterly, NOT fantasy
 3. CRITICAL — match this exact visual style: {style["flux_style"]}
 4. No text, no logos, no faces, no people
 5. Max 20 words
@@ -570,18 +570,18 @@ DARK style examples:
 - Layoffs: "Empty office chairs at night, blue computer screens, dark room, photorealistic"
 
 VIVID style examples:
-- Battery/EV: "Electric vehicle charging at outdoor station, bright blue sky, vivid sunlight, high contrast, photorealistic"
-- Bitcoin: "Crypto trading floor screens, vivid blue and green displays, bright overhead lighting, photorealistic"
-- AI chips: "Semiconductor factory floor, vivid electric blue clean room lighting, high contrast, photorealistic"
-- Bank/finance: "Wall Street street level, bold blue sky, vivid sunlight, high contrast cityscape, photorealistic"
-- Layoffs: "Empty open plan office, vivid blue daylight through windows, bright contrast, photorealistic"
+- Battery/EV: "Electric vehicle charging station, vivid electric blue and green neon glow, high contrast, photorealistic"
+- Bitcoin: "Gold Bitcoin coin, vibrant emerald and electric blue background, bold dramatic lighting, photorealistic"
+- AI chips: "Nvidia GPU circuit board, bold electric blue and green light trails, vivid high contrast, photorealistic"
+- Bank/finance: "Wall Street building facade, bold blue sky, vivid sunlight, high contrast cityscape, photorealistic"
+- Layoffs: "Modern office space flooded with vivid blue light, bold colour contrast, photorealistic"
 
 WARM style examples:
-- Battery/EV: "Electric vehicle charging station at golden hour, warm amber sunset light, cinematic, photorealistic"
-- Bitcoin: "Financial district street at golden hour, warm amber light on buildings, cinematic, photorealistic"
-- AI chips: "Server room corridor, warm amber emergency lighting, teal screen glow, cinematic, photorealistic"
-- Bank/finance: "Federal Reserve building at golden hour, warm amber sky, long shadows, cinematic, photorealistic"
-- Layoffs: "Empty office at dusk, warm amber desk lamps, teal twilight through windows, cinematic, photorealistic"
+- Battery/EV: "Electric vehicle battery cells, warm amber and teal industrial glow, cinematic lighting, photorealistic"
+- Bitcoin: "Gold Bitcoin coin, rich amber light, deep teal background, premium editorial, photorealistic"
+- AI chips: "GPU chip close up, warm amber circuit glow, deep teal background, cinematic, photorealistic"
+- Bank/finance: "Federal Reserve building, warm golden sunset light, rich amber sky, cinematic, photorealistic"
+- Layoffs: "Empty office, warm amber desk lamps, teal window light at dusk, cinematic, photorealistic"
 
 Your assigned style is: {style["name"].upper()}. Use ONLY that style's examples as reference.
 
@@ -906,73 +906,120 @@ def card_tweet_screenshot(tweet_text,label="THIS WEEK"):
     img.save("card.png","PNG")
     print("Card saved (tweet screenshot)")
 
-# ── CAROUSEL: STAT CARD (Slide 2) ────────────────────────────────
+# ── CAROUSEL: STAT CARD (Slide 2) — Data Viz Chart ──────────────
 def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value):
-    """Light background stat card for carousel slide 2."""
-    img  = Image.new("RGB", (W, H), (255, 255, 255))   # pure white
+    """Bold data visualisation chart card for carousel slide 2 — Var 2: White/Blue/Gold."""
+    UA_BLUE = (58, 101, 185)
+    NAVY2   = (10, 22, 40)
+    GREY_T  = (160, 160, 160)
+
+    img  = Image.new("RGB", (W, H), (255, 255, 255))
     draw = ImageDraw.Draw(img)
-    PAD  = 80
+    PAD  = 72
 
-    # Gold left accent bar
-    draw.rectangle([(0, 0), (10, H)], fill=GOLD)
+    # ── Double stripe header: UA_BLUE on top, GOLD below ──
+    draw.rectangle([(0, 0),  (W, 18)], fill=UA_BLUE)
+    draw.rectangle([(0, 18), (W, 32)], fill=GOLD)
+    # ── Bottom footer bar ──
+    draw.rectangle([(0, H - 12), (W, H)], fill=UA_BLUE)
 
-    # Top label
-    lf = ImageFont.truetype(FONT_BOLD, 24)
-    draw.text((PAD, 64), "THE LEDGER WIRE", font=lf, fill=GOLD)
-    draw.text((PAD, 100), "BY THE NUMBERS", font=lf, fill=(160, 160, 160))
+    # ── Brand label — UA_BLUE, fully readable on white ──
+    lf = ImageFont.truetype(FONT_BOLD, 22)
+    draw.text((PAD, 50), "THE LEDGER WIRE", font=lf, fill=UA_BLUE)
 
-    # Big stat number — navy, very large
-    sf  = ImageFont.truetype(FONT_BOLD, 180)
-    slh = draw.textbbox((0, 0), "Ag", font=sf)[3]
-    lines = wrap_text(draw, stat_number, sf, W - PAD * 2)
-    y = 160
-    for line in lines[:2]:
-        draw.text((PAD, y), line, font=sf, fill=NAVY)
-        y += slh + 4
+    # ── Big bold ALL-CAPS title (stat_label as headline) ──
+    tf  = ImageFont.truetype(FONT_BOLD, 68)
+    tlh = draw.textbbox((0, 0), "Ag", font=tf)[3]
+    title_lines = wrap_text(draw, stat_label.upper(), tf, W - PAD * 2)
+    y = 110
+    for line in title_lines[:2]:
+        draw.text((PAD, y), line, font=tf, fill=NAVY2)
+        y += tlh + 4
 
-    # Stat label — purple, bold
-    slf = ImageFont.truetype(FONT_BOLD, 44)
-    slb = draw.textbbox((0, 0), "Ag", font=slf)[3]
-    draw.text((PAD, y + 12), stat_label, font=slf, fill=(83, 74, 183))
-    y += slb + 28
+    # ── Source label ──
+    sf2 = ImageFont.truetype(FONT_REG, 22)
+    draw.text((PAD, y + 8), f"SOURCE: THE LEDGER WIRE  ·  {stat_context[:40].upper()}", font=sf2, fill=GREY_T)
+    y += 52
 
-    # Context sentence — grey
-    cf  = ImageFont.truetype(FONT_REG, 30)
-    clh = draw.textbbox((0, 0), "Ag", font=cf)[3]
-    ctx_lines = wrap_text(draw, stat_context, cf, W - PAD * 2)
-    for cl in ctx_lines[:2]:
-        draw.text((PAD, y), cl, font=cf, fill=(120, 120, 120))
-        y += clh + 8
+    # ── Parse values for chart bars ──
+    def parse_val(v):
+        """Extract numeric from strings like $30B, 74%, 25,000"""
+        import re
+        v = str(v).replace(',','').replace('$','').replace('%','')
+        m = re.search(r'[\d.]+([BMK])?', v, re.I)
+        if not m: return 1.0
+        n = float(m.group(0).rstrip('BMKbmk'))
+        suf = (m.group(1) or '').upper()
+        if suf == 'B': n *= 1000
+        elif suf == 'M': n *= 1
+        elif suf == 'K': n *= 0.001
+        return max(n, 0.01)
 
-    # Comparison bars
-    if compare_a_label and compare_b_label:
-        y += 50
-        bar_lf = ImageFont.truetype(FONT_REG,  28)
-        bar_vf = ImageFont.truetype(FONT_BOLD, 28)
-        bar_w  = W - PAD * 2
-        bar_h  = 24
+    val_a = parse_val(compare_a_value)
+    val_b = parse_val(compare_b_value)
+    max_v = max(val_a, val_b) * 1.15
 
-        # Bar A — grey reference
-        draw.text((PAD, y), compare_a_label, font=bar_lf, fill=(160, 160, 160))
-        av = draw.textbbox((0, 0), compare_a_value, font=bar_vf)
-        draw.text((W - PAD - (av[2] - av[0]), y), compare_a_value, font=bar_vf, fill=(160, 160, 160))
-        y += 38
-        draw.rounded_rectangle([(PAD, y), (PAD + int(bar_w * 0.28), y + bar_h)], radius=6, fill=(210, 210, 210))
-        y += bar_h + 56
+    # ── Chart area ──
+    chart_left  = PAD
+    chart_right = W - PAD
+    chart_w     = chart_right - chart_left
+    chart_top   = y + 20
+    chart_bot   = H - 160
+    chart_h     = chart_bot - chart_top
 
-        # Bar B — purple hero
-        draw.text((PAD, y), compare_b_label, font=bar_lf, fill=(83, 74, 183))
-        bv = draw.textbbox((0, 0), compare_b_value, font=bar_vf)
-        draw.text((W - PAD - (bv[2] - bv[0]), y), compare_b_value, font=bar_vf, fill=(83, 74, 183))
-        y += 38
-        draw.rounded_rectangle([(PAD, y), (PAD + int(bar_w * 0.88), y + bar_h)], radius=6, fill=(83, 74, 183))
+    # ── Horizontal grid lines ──
+    gf = ImageFont.truetype(FONT_REG, 20)
+    for pct in [0, 25, 50, 75, 100]:
+        gy = chart_bot - int(chart_h * pct / 100)
+        draw.line([(chart_left, gy), (chart_right, gy)], fill=(225, 225, 225), width=1)
+        # y-axis label
+        lbl_v = f"{int(max_v * pct / 100)}"
+        draw.text((chart_left - 8, gy - 12), lbl_v, font=gf, fill=(160, 160, 160), anchor="ra")
 
-    # Footer
-    ff = ImageFont.truetype(FONT_REG, 24)
-    draw.text((PAD, H - 60), "theledgerwire.com", font=ff, fill=GOLD)
-    draw.rectangle([(0, H - 10), (W, H)], fill=GOLD)
+    # ── Bar dimensions ──
+    n_bars   = 2
+    grp_w    = chart_w // n_bars
+    bar_w    = int(grp_w * 0.52)
+    colors   = [GOLD, UA_BLUE]
+    values   = [val_a, val_b]
+    labels   = [compare_a_label or "Before", compare_b_label or "Now"]
+    raw_vals = [compare_a_value, compare_b_value]
+
+    bvf = ImageFont.truetype(FONT_BOLD, 28)
+    blf = ImageFont.truetype(FONT_BOLD, 24)
+
+    val_colors = [(160, 120, 0), UA_BLUE]
+    for i, (val, col, lbl, raw) in enumerate(zip(values, colors, labels, raw_vals)):
+        bx    = chart_left + i * grp_w + (grp_w - bar_w) // 2
+        bar_h2 = int(chart_h * min(val / max_v, 1.0))
+        by    = chart_bot - bar_h2
+
+        # Bar
+        draw.rectangle([(bx, by), (bx + bar_w, chart_bot)], fill=col)
+
+        # Value label ON TOP of bar
+        vb = draw.textbbox((0, 0), raw, font=bvf)
+        vw = vb[2] - vb[0]
+        draw.text((bx + (bar_w - vw) // 2, by - 40), raw, font=bvf, fill=val_colors[i])
+
+        # X-axis label below bar
+        lb2 = draw.textbbox((0, 0), lbl, font=blf)
+        lw  = lb2[2] - lb2[0]
+        draw.text((bx + (bar_w - lw) // 2, chart_bot + 14), lbl, font=blf, fill=NAVY2)
+
+    # ── Stat number callout (bottom left) ──
+    snf  = ImageFont.truetype(FONT_BOLD, 52)
+    snlf = ImageFont.truetype(FONT_REG, 22)
+    draw.text((PAD, H - 130), stat_number, font=snf, fill=UA_BLUE)
+    snb  = draw.textbbox((0, 0), stat_number, font=snf)
+    draw.text((PAD + snb[2] + 12, H - 115), "KEY FIGURE", font=snlf, fill=(160, 160, 160))
+
+    # ── Footer ──
+    ff = ImageFont.truetype(FONT_REG, 22)
+    draw.text((W - PAD, H - 48), "theledgerwire.com", font=ff, fill=UA_BLUE, anchor="ra")
+
     img.save("carousel_2.png", "PNG")
-    print("Carousel slide 2 saved")
+    print("Carousel slide 2 saved (chart mode)")
 
 # ── CAROUSEL: CONTEXT CARD (Slide 3) ─────────────────────────────
 def card_carousel_context(fact1, fact2, fact3, h1, h2):
