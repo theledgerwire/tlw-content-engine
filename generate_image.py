@@ -32,7 +32,7 @@ FORCE_STYLE       = os.environ.get("FORCE_STYLE", "").lower().strip()  # set to 
 STYLE_VARIANTS = [
     {
         "name":        "dark",
-        "weight":       60,
+        "weight":       50,
         "flux_style":  "dark background, dramatic studio lighting, navy blue and gold color tones",
         "brightness":   0.62,
         "saturation":   0.85,
@@ -40,7 +40,7 @@ STYLE_VARIANTS = [
     },
     {
         "name":        "vivid",
-        "weight":       20,
+        "weight":       30,
         "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting, NO dark backgrounds, bright and colourful",
         "brightness":   0.88,
         "saturation":   1.35,
@@ -278,14 +278,26 @@ TIER 2 — FALLBACK: Major company earnings, M&A, layoffs, stock market moves, e
 
 Reply SKIP only if: pure geopolitics/war with no market angle, sports, entertainment, food, lifestyle.
 
+MANDATORY COVERAGE RULE — these two categories are ALWAYS TIER 1, never skip:
+1. CRYPTO: Any story mentioning Bitcoin, Ethereum, crypto, DeFi, stablecoins, blockchain, Coinbase, Binance → always Tier 1
+2. MARKETS: Any story mentioning S&P 500, Nasdaq, Dow, stock market rally/crash/correction, sector rotation, VIX → always Tier 1
+These topics are core to TLW's audience. Never skip them regardless of other content.
+
 Reply in this EXACT format:
 
 TIER: [1 or 2]
 TWEET: [Morning Brew style, STRICTLY under 220 chars, curiosity gap, never explain full story, end with -> theledgerwire.com #AI #Finance]
 LINKEDIN: [Morning Brew style, ONE punchy opener, 2-3 short paragraphs, end with question. ABSOLUTELY NO URLs, NO website links, NO theledgerwire.com anywhere in the text. The algorithm penalises posts with links. Write like a smart colleague over coffee.]
-H1: [1-3 words MAX, shocking stat or number, abbreviations only. GOOD: $60B. / 30,000 jobs. BAD: $60 Billion]
-H2: [2-4 words, company + what happened. GOOD: Anthropic. Going public. / Oracle. 6am email.]
-HOOK: [2-5 words, bottom closer, curiosity gap. GOOD: No ticker. Yet. / Stock went up 4%.]
+H1: [1-3 words MAX — pick the mode that hits hardest for THIS story:
+  STAT mode (money/data stories): "$60B." / "58%." / "30,000 jobs." — abbreviate, never spell out
+  POWER mode (conflict/ban/crisis/disruption): "Banned." / "War." / "Zero." / "Game Over." / "Fired."
+  TENSION mode (two-sided/uncertain stories): "Risk On." / "Too Late?" / "Who Wins?" / "Not Yet."
+  Never default to a dollar stat if a power word hits harder. Never repeat H1 formats used today.]
+H2: [2-4 words, company + what happened. GOOD: Anthropic. Going public. / Oracle. 6am email. / China. Copying stopped.]
+HOOK: [2-5 words, story-specific curiosity gap — must reference something unique to THIS story.
+  NEVER use generic phrases like "Watch this space" / "Locals aren't sure" / "More to come" / "Stay tuned"
+  GOOD: "Wafer prices next." / "IPO clock starts." / "Beijing not happy." / "One supplier left."
+  BAD: "Markets are watching." / "This could change everything." / "Nobody saw this coming."]
 LINES: [3 short facts max 8 words each separated by | character]
 KEYWORD: [3-5 word SPECIFIC photo search. Match visually:
 - Code/hack/leak → "computer hacker dark screen"
@@ -297,7 +309,12 @@ KEYWORD: [3-5 word SPECIFIC photo search. Match visually:
 - Oil/energy → "oil pipeline sunset"
 - Space/NASA → "rocket launch nasa"
 - AI company → "artificial intelligence neural network"
-NEVER use: "finance technology" / "business" / "woman laptop"]
+- Semiconductor/chip → "semiconductor chip close up"
+- Europe/EU → "european parliament building"
+- Sanctions/trade → "cargo ship port aerial"
+- Jobs/layoffs → "empty office building"
+NEVER use: "finance technology" / "business" / "woman laptop"
+CRITICAL: Never repeat the same keyword as a story posted earlier today. Be specific to THIS story.]
 STAT_NUMBER: [the single most impactful number from the story e.g. $2.2B or 40% or 30,000. If no specific number exists use the H1 value]
 STAT_LABEL: [3-5 words describing what the stat represents]
 STAT_CONTEXT: [one punchy sentence explaining the stat in context]
