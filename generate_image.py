@@ -1395,6 +1395,7 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
     return False
 
 
+def post_to_buffer(post_text,image_url,channel_id,api_key,platform="",retries=2):
     print(f"Posting to Buffer {platform}...")
     time.sleep(3)
     def esc(s):
