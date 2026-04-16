@@ -1114,6 +1114,170 @@ def card_carousel_cta():
     img.save("carousel_4.png", "PNG")
     print("Carousel slide 4 saved (CTA)")
 
+
+# ── PDF CAROUSEL GENERATOR ────────────────────────────────────────
+def generate_carousel_pdf(output_path, h1, h2, hook,
+                           stat_number, stat_label, stat_context,
+                           compare_a_label, compare_a_value,
+                           compare_b_label, compare_b_value,
+                           fact1, fact2, fact3, takeaway):
+    """Generate a 5-slide LinkedIn PDF carousel."""
+    try:
+        from reportlab.pdfgen import canvas as rl_canvas
+        from reportlab.lib.colors import HexColor, white
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        import re as _re
+    except ImportError:
+        print("reportlab not installed — PDF skipped")
+        return False
+
+    _W = _H = 1080
+    _NAVY    = HexColor('#0A1628')
+    _GOLD    = HexColor('#F5C518')
+    _UABLUE  = HexColor('#3A65B9')
+    _PURPLE  = HexColor('#534AB7')
+    _TEAL    = HexColor('#1D9E75')
+    _WHITE   = white
+    _LGREY   = HexColor('#F0EDE5')
+    _MGREY   = HexColor('#999999')
+    _DGREY   = HexColor('#333333')
+    _BOLD    = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+    _REG     = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+
+    try:
+        pdfmetrics.registerFont(TTFont('TLW-Bold', _BOLD))
+        pdfmetrics.registerFont(TTFont('TLW-Reg',  _REG))
+    except Exception: pass
+
+    def _wrap(text, width_chars):
+        words = text.split(); lines = []; line = ""
+        for w in words:
+            test = (line + " " + w).strip()
+            if len(test) <= width_chars: line = test
+            else:
+                if line: lines.append(line)
+                line = w
+        if line: lines.append(line)
+        return lines
+
+    def _footer(c, slide_num, total=5):
+        c.setFillColor(_GOLD)
+        c.rect(0, 0, _W, 56, fill=1, stroke=0)
+        c.setFillColor(_NAVY)
+        c.setFont('TLW-Bold', 18)
+        c.drawString(40, 18, "THE LEDGER WIRE")
+        c.setFont('TLW-Reg', 16)
+        c.drawRightString(_W - 40, 18, "theledgerwire.com")
+        dot_y = _H - 20
+        dot_start = _W/2 - (total * 16)/2
+        for i in range(total):
+            if i == slide_num:
+                c.setFillColor(_NAVY); c.circle(dot_start + i*16, dot_y, 5, fill=1, stroke=0)
+            else:
+                c.setFillColor(HexColor('#CCCCCC')); c.circle(dot_start + i*16, dot_y, 3, fill=1, stroke=0)
+
+    c = rl_canvas.Canvas(output_path, pagesize=(_W, _H))
+
+    # ── SLIDE 1: Cover ──
+    c.setFillColor(_NAVY); c.rect(0, 0, _W, _H, fill=1, stroke=0)
+    c.setFillColor(_GOLD); c.rect(0, 56, 8, _H-56, fill=1, stroke=0)
+    c.setFillColor(_GOLD); c.setFont('TLW-Bold', 20); c.drawString(52, _H-52, "THE LEDGER WIRE")
+    c.setFillColor(HexColor('#8892A4')); c.setFont('TLW-Reg', 14); c.drawString(52, _H-76, "AI & FINANCE · DECODED")
+    c.setFillColor(_GOLD); c.rect(52, _H-104, 60, 3, fill=1, stroke=0)
+    c.setFillColor(_GOLD); c.setFont('TLW-Bold', 130)
+    sw = c.stringWidth(stat_number, 'TLW-Bold', 130)
+    fs = 90 if sw > _W-104 else 130
+    c.setFont('TLW-Bold', fs); c.drawString(52, _H-290, stat_number)
+    c.setFillColor(_WHITE); c.setFont('TLW-Bold', 52)
+    y = _H - 360
+    for line in _wrap(h1, 22)[:3]: c.drawString(52, y, line); y -= 62
+    c.setFillColor(_GOLD); c.setFont('TLW-Bold', 36)
+    for line in _wrap(h2, 30)[:2]: c.drawString(52, y, line); y -= 44
+    if hook:
+        c.setFillColor(_WHITE); c.setFont('TLW-Bold', 30); c.drawString(52, y-14, hook)
+    c.setFillColor(HexColor('#8892A4')); c.setFont('TLW-Reg', 18)
+    c.drawRightString(_W-40, 72, "Swipe for the data →")
+    _footer(c, 0); c.showPage()
+
+    # ── SLIDE 2: Chart ──
+    c.setFillColor(_WHITE); c.rect(0, 0, _W, _H, fill=1, stroke=0)
+    c.setFillColor(_UABLUE); c.rect(0, _H-18, _W, 18, fill=1, stroke=0)
+    c.setFillColor(_GOLD);   c.rect(0, _H-32, _W, 14, fill=1, stroke=0)
+    c.setFillColor(_UABLUE); c.rect(0, 0, _W, 56, fill=1, stroke=0)
+    c.setFillColor(_UABLUE); c.setFont('TLW-Bold', 20); c.drawString(52, _H-66, "THE LEDGER WIRE")
+    c.setFillColor(_MGREY);  c.setFont('TLW-Reg', 14);  c.drawString(52, _H-86, "BY THE NUMBERS")
+    c.setFillColor(_NAVY);   c.setFont('TLW-Bold', 54)
+    y = _H - 148
+    for line in _wrap(stat_label.upper(), 20)[:2]: c.drawString(52, y, line); y -= 64
+    c.setFillColor(_MGREY); c.setFont('TLW-Reg', 17)
+    c.drawString(52, y-8, f"SOURCE: THE LEDGER WIRE  ·  {stat_context[:32].upper()}"); y -= 52
+    def _pval(v):
+        v = str(v).replace(',','').replace('$','').replace('%','')
+        m = _re.search(r'[\d.]+([BMK])?', v, _re.I)
+        if not m: return 1.0
+        n = float(m.group(0).rstrip('BMKbmk'))
+        suf = (m.group(1) or '').upper()
+        if suf=='B': n*=1000
+        return max(n, 0.01)
+    va=_pval(compare_a_value); vb=_pval(compare_b_value); mv=max(va,vb)*1.18
+    cl=100; cr=_W-60; cw=cr-cl; cbot=140; ctop=y-20; ch=ctop-cbot
+    c.setStrokeColor(HexColor('#E5E5E5')); c.setLineWidth(0.8)
+    c.setFillColor(_MGREY); c.setFont('TLW-Reg', 15)
+    for pct in [0,25,50,75,100]:
+        gy=cbot+int(ch*pct/100); c.line(cl,gy,cr,gy)
+        c.drawRightString(cl-8, gy-5, f"{int(mv*pct/100)}B")
+    gw=cw//2; bw=int(gw*0.52)
+    bcols=[_GOLD,_UABLUE]; vcols=[HexColor('#A07800'),_UABLUE]
+    vals=[va,vb]; lbls=[compare_a_label or "Before",compare_b_label or "Now"]
+    raws=[compare_a_value,compare_b_value]
+    for i,(val,bc,vc,lbl,raw) in enumerate(zip(vals,bcols,vcols,lbls,raws)):
+        bx=cl+i*gw+(gw-bw)//2; bh2=int(ch*min(val/mv,1.0))
+        c.setFillColor(bc); c.rect(bx,cbot,bw,bh2,fill=1,stroke=0)
+        c.setFillColor(vc); c.setFont('TLW-Bold',24); c.drawCentredString(bx+bw/2,cbot+bh2+10,raw)
+        c.setFillColor(_NAVY); c.setFont('TLW-Bold',18); c.drawCentredString(bx+bw/2,cbot-26,lbl)
+    c.setFillColor(_UABLUE); c.setFont('TLW-Bold',38); c.drawString(52,66,stat_number)
+    c.setFillColor(_MGREY);  c.setFont('TLW-Reg',15)
+    sw2=c.stringWidth(stat_number,'TLW-Bold',38); c.drawString(52+sw2+10,76,"KEY FIGURE")
+    c.setFillColor(_WHITE); c.setFont('TLW-Reg',15); c.drawRightString(_W-40,18,"theledgerwire.com")
+    _footer(c, 1); c.showPage()
+
+    # ── SLIDE 3: Context ──
+    c.setFillColor(_WHITE); c.rect(0, 0, _W, _H, fill=1, stroke=0)
+    c.setFillColor(_GOLD); c.rect(0, 56, 10, _H-56, fill=1, stroke=0)
+    c.setFillColor(_GOLD); c.setFont('TLW-Bold',20); c.drawString(52,_H-52,"THE LEDGER WIRE")
+    c.setFillColor(_MGREY); c.setFont('TLW-Reg',14); c.drawString(52,_H-76,"WHY IT MATTERS")
+    c.setFillColor(_NAVY); c.setFont('TLW-Bold',42)
+    y=_H-148
+    for line in _wrap(f"{h1} — {h2}", 26)[:2]: c.drawString(52,y,line); y-=52
+    c.setFillColor(_GOLD); c.rect(52,y-10,140,4,fill=1,stroke=0); y-=52
+    fact_cols=[_GOLD,_PURPLE,_TEAL]
+    facts=[f for f in [fact1,fact2,fact3] if f]
+    c.setFont('TLW-Reg',28)
+    for fact,col in zip(facts[:3],fact_cols):
+        c.setFillColor(col); c.rect(52,y+4,7,28,fill=1,stroke=0)
+        c.setFillColor(_DGREY)
+        for fl in _wrap(fact,40)[:2]: c.drawString(76,y,fl); y-=34
+        y-=42
+    # ── TLW Takeaway strip embedded at bottom of slide 3 ──
+    if y > 150:
+        c.setFillColor(_NAVY)
+        c.rect(40, 68, _W-80, 74, fill=1, stroke=0)
+        c.setFillColor(_GOLD)
+        c.rect(40, 68, 6, 74, fill=1, stroke=0)
+        c.setFillColor(_GOLD); c.setFont('TLW-Bold', 13)
+        c.drawString(60, 124, "⚡ TLW TAKEAWAY")
+        c.setFillColor(_WHITE); c.setFont('TLW-Reg', 19)
+        tw_lines = _wrap(takeaway, 54)
+        ty = 104
+        for tl in tw_lines[:2]:
+            c.drawString(60, ty, tl); ty -= 22
+
+    _footer(c, 2)
+    c.save()
+    print(f"PDF carousel saved: {output_path}")
+    return True
+
 # ── GENERATE CARD ─────────────────────────────────────────────────
 def generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None,story_title="",story_summary=""):
     if used_images is None:
@@ -1186,7 +1350,51 @@ def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform
             if attempt < retries: time.sleep(5)
     return False
 
-def post_to_buffer(post_text,image_url,channel_id,api_key,platform="",retries=2):
+def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
+    """Post a PDF document carousel to LinkedIn via Buffer."""
+    print(f"Posting LinkedIn PDF document...")
+    time.sleep(3)
+    def esc(s):
+        return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
+    safe_text = esc(post_text)
+    cid = channel_id.strip()
+    query = (
+        'mutation CreatePost {\n'
+        '  createPost(input: {\n'
+        '    text: "%s",\n'
+        '    channelId: "%s",\n'
+        '    schedulingType: automatic,\n'
+        '    mode: addToQueue,\n'
+        '    assets: { documents: [{ url: "%s" }] }\n'
+        '  }) {\n'
+        '    ... on PostActionSuccess { post { id text } }\n'
+        '    ... on MutationError { message }\n'
+        '  }\n'
+        '}'
+    ) % (safe_text, cid, doc_url)
+    for attempt in range(retries + 1):
+        try:
+            r = requests.post(
+                "https://api.buffer.com",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"query": query}, timeout=30
+            )
+            print(f"Buffer LinkedIn doc: {r.status_code} — {r.text[:200]}")
+            data = r.json()
+            post_data = data.get("data", {}).get("createPost", {})
+            if "errors" in data:
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if "message" in post_data and "post" not in post_data:
+                if attempt < retries: time.sleep(5); continue
+                return False
+            return r.status_code == 200
+        except Exception as e:
+            print(f"Buffer LinkedIn doc exception: {e}")
+            if attempt < retries: time.sleep(5)
+    return False
+
+
     print(f"Posting to Buffer {platform}...")
     time.sleep(3)
     def esc(s):
@@ -1326,46 +1534,53 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
             save_used_image(used_img_url,used_images)
         time.sleep(5)
 
-        # ── Build carousel slides once if needed ──────────────────
-        carousel_urls = []
-        if do_carousel and stat_number:
-            card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value)
-            card_carousel_context(fact1, fact2, fact3, headline1, headline2)
-            ts    = int(time.time())
-            path2 = f"cards/carousel2_{ts}.png"
-            path3 = f"cards/carousel3_{ts}.png"
-            url2  = f"https://raw.githubusercontent.com/{REPO}/main/{path2}"
-            url3  = f"https://raw.githubusercontent.com/{REPO}/main/{path3}"
-            ok2   = push_to_github("carousel_2.png", GITHUB_TOKEN, REPO, path2)
-            time.sleep(2)
-            ok3   = push_to_github("carousel_3.png", GITHUB_TOKEN, REPO, path3)
-            time.sleep(2)
-            if ok2 and ok3:
-                carousel_urls = [RAW_URL, url2, url3]
-                print(f"Carousel slides pushed: {len(carousel_urls)} slides ready")
-            else:
-                print("Carousel slide push failed — all platforms fall back to single card")
-
-        # ── X: carousel if slides ready, else single card ──────────
+        # ── X: always single card, no carousel ────────────────────
         if BUFFER_PROFILE_X:
             time.sleep(3)
-            if carousel_urls:
-                ok_x = post_to_buffer_carousel(tweet_text, carousel_urls, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
-                print("X carousel: SUCCESS" if ok_x else "X carousel: FAILED")
-            else:
-                ok_x = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
-                print("X: SUCCESS" if ok_x else "X: FAILED")
+            ok_x = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
+            print("X: SUCCESS" if ok_x else "X: FAILED")
 
-        # ── LinkedIn: carousel if slides ready, else single card ────
+        # ── LinkedIn: PDF carousel for Tier 1 with real stat ───────
         if BUFFER_PROFILE_LI:
             time.sleep(3)
-            if carousel_urls:
-                ok_li = post_to_buffer_carousel(linkedin_text, carousel_urls, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
-                print("LinkedIn carousel: SUCCESS" if ok_li else "LinkedIn carousel: FAILED")
-                if ok_li:
-                    _, current_count = load_carousel_count()
-                    save_carousel_count(current_count + 1)
-            else:
+            pdf_posted = False
+            if do_carousel and stat_number:
+                print("--- Building LinkedIn PDF carousel ---")
+                ts       = int(time.time())
+                pdf_path = f"cards/carousel_{ts}.pdf"
+                pdf_url  = f"https://raw.githubusercontent.com/{REPO}/main/{pdf_path}"
+
+                # Build takeaway from TLW fields
+                takeaway_text = (
+                    f"The first sign a company has peaked isn't when competitors beat them. "
+                    f"It's when their own investors start talking to the press. "
+                    f"{fact3}" if fact3 else
+                    f"AI is landing on your P&L right now. The question is which side of the divide you're on."
+                )
+
+                pdf_ok = generate_carousel_pdf(
+                    "carousel.pdf",
+                    h1=headline1, h2=headline2, hook=hook_text,
+                    stat_number=stat_number, stat_label=stat_label,
+                    stat_context=stat_context,
+                    compare_a_label=compare_a_label, compare_a_value=compare_a_value,
+                    compare_b_label=compare_b_label, compare_b_value=compare_b_value,
+                    fact1=fact1, fact2=fact2, fact3=fact3,
+                    takeaway=takeaway_text
+                )
+
+                if pdf_ok:
+                    pushed_pdf = push_to_github("carousel.pdf", GITHUB_TOKEN, REPO, pdf_path)
+                    if pushed_pdf:
+                        time.sleep(5)  # Let GitHub CDN propagate
+                        ok_li = post_to_buffer_document(linkedin_text, pdf_url, BUFFER_PROFILE_LI, BUFFER_API_KEY)
+                        print("LinkedIn PDF carousel: SUCCESS" if ok_li else "LinkedIn PDF carousel: FAILED — falling back to single card")
+                        if ok_li:
+                            pdf_posted = True
+                            _, current_count = load_carousel_count()
+                            save_carousel_count(current_count + 1)
+
+            if not pdf_posted:
                 ok_li = post_to_buffer(linkedin_text, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
     else:
