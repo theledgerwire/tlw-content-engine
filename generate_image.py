@@ -287,7 +287,17 @@ Reply in this EXACT format:
 
 TIER: [1 or 2]
 TWEET: [Morning Brew style, STRICTLY under 220 chars, curiosity gap, never explain full story, end with -> theledgerwire.com #AI #Finance]
-LINKEDIN: [Morning Brew style, ONE punchy opener, 2-3 short paragraphs, end with question. ABSOLUTELY NO URLs, NO website links, NO theledgerwire.com anywhere in the text. The algorithm penalises posts with links. Write like a smart colleague over coffee.]
+  FRAMING PRIORITY — pick the angle that hits hardest:
+  1. CAREER IMPACT first: "Your job in [X sector] just changed." / "The role being automated isn't on the factory floor." / "This is hitting [profession] hardest."
+  2. MONEY impact: "Your portfolio just got a new variable." / "$X just moved from [A] to [B]."
+  3. POWER shift: "The company that [X] is now [Y]." / "[X] no longer controls [Y]."
+  NEVER write generic news headlines. Always write from the reader's personal perspective.
+LINKEDIN: [Morning Brew style. STRUCTURE:
+  LINE 1: Career/personal impact hook — "If you work in [X], this week changed your job." / "The [profession] role just got harder to justify." / "Your [sector] competitors just got a new weapon."
+  LINES 2-4: 2-3 short punchy paragraphs. What happened. Why it matters personally. The uncomfortable truth.
+  FINAL LINE: One direct question that challenges the reader — "How is your team responding to this?" / "Is your company in the 20% or the 80%?" / "What would you cut first?"
+  ABSOLUTELY NO URLs, NO website links, NO theledgerwire.com anywhere.
+  Write like a smart senior colleague who just read something important and wants your reaction — not a news anchor.]
 H1: [1-3 words MAX — pick the mode that hits hardest for THIS story:
   STAT mode (money/data stories): "$60B." / "58%." / "30,000 jobs." — abbreviate, never spell out
   POWER mode (conflict/ban/crisis/disruption): "Banned." / "War." / "Zero." / "Game Over." / "Fired."
@@ -297,7 +307,8 @@ H2: [2-4 words, company + what happened. GOOD: Anthropic. Going public. / Oracle
 HOOK: [2-5 words, story-specific curiosity gap — must reference something unique to THIS story.
   NEVER use generic phrases like "Watch this space" / "Locals aren't sure" / "More to come" / "Stay tuned"
   GOOD: "Wafer prices next." / "IPO clock starts." / "Beijing not happy." / "One supplier left."
-  BAD: "Markets are watching." / "This could change everything." / "Nobody saw this coming."]
+  BAD: "Markets are watching." / "This could change everything." / "Nobody saw this coming."
+  REPOST TRIGGER: The hook should make the reader want to tag someone — "Your [colleague/manager/team] needs to see this." type energy.]
 LINES: [3 short facts max 8 words each separated by | character]
 KEYWORD: [3-5 word SPECIFIC photo search. Match visually:
 - Code/hack/leak → "computer hacker dark screen"
