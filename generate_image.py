@@ -22,7 +22,7 @@ FAL_KEY           = os.environ.get("FAL_KEY", "")
 CARD_TYPE         = os.environ.get("CARD_TYPE", "news")
 WEEKLY_HEADLINES  = os.environ.get("WEEKLY_HEADLINES", "")
 IMAGE_KEYWORD       = os.environ.get("IMAGE_KEYWORD", "finance technology")
-CAROUSEL_MAX_DAILY  = 2          # max carousel posts per day
+CAROUSEL_MAX_DAILY  = 4          # max PDF carousel posts per day
 CAROUSEL_COUNT_PATH = "data/carousel_count.json"
 PREVIEW_MODE      = os.environ.get("PREVIEW_MODE", "0") == "1"
 FORCE_STYLE       = os.environ.get("FORCE_STYLE", "").lower().strip()  # set to "dark"/"vivid"/"warm" to override random
@@ -1157,7 +1157,7 @@ def generate_carousel_pdf(output_path, h1, h2, hook,
         from reportlab.pdfbase.ttfonts import TTFont
         import re as _re
     except ImportError:
-        print("reportlab not installed — PDF skipped")
+        print("ERROR: reportlab not installed — add to pip install in workflow YAML")
         return False
 
     _W = _H = 1080
