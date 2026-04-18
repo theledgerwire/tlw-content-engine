@@ -13,7 +13,7 @@ from datetime import datetime
 BUFFER_API_KEY    = os.environ.get("BUFFER_API_KEY", "")
 BUFFER_PROFILE_X  = os.environ.get("BUFFER_PROFILE_X", "")
 BUFFER_PROFILE_LI = os.environ.get("BUFFER_PROFILE_LI", "")
-BUFFER_PROFILE_IG = os.environ.get("BUFFER_PROFILE_IG", "")  # Instagram — optional
+BUFFER_PROFILE_IG = os.environ.get("BUFFER_PROFILE_IG", "")  # Instagram
 GITHUB_TOKEN      = os.environ.get("GITHUB_TOKEN", "")
 ANTHROPIC_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
 UNSPLASH_KEY      = os.environ.get("UNSPLASH_KEY", "")
@@ -1637,6 +1637,17 @@ print(f"DEBUG carousel fields — stat_label:'{stat_label}' | fact1:'{fact1}' | 
 # Hard strip URLs from LinkedIn one more time
 linkedin_text = strip_urls(linkedin_text)
 
+# ── Instagram caption — punchy, hashtag-rich, no link (goes in bio) ──
+ig_caption = f"""{headline1}
+
+{headline2}
+
+{hook_text}
+
+Follow @theledgerwire.ai for daily AI & Finance intel.
+
+#AI #Finance #Tech #Investing #Markets #ArtificialIntelligence #FinanceNews #AINews #StockMarket #Crypto"""
+
 if x_char_count(tweet_text)>280:
     print("ERROR: Tweet over 280 — exiting"); exit(1)
 
@@ -1706,6 +1717,39 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
             if not pdf_posted:
                 ok_li = post_to_buffer(linkedin_text, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
+
+        # ── Instagram: PDF carousel (Tier 1) or single card ────────
+        if BUFFER_PROFILE_IG:
+            time.sleep(3)
+            ig_posted = False
+            if do_carousel and stat_number:
+                print("--- Building Instagram PDF carousel ---")
+                ts_ig    = int(time.time()) + 1
+                pdf_ig_path = f"cards/ig_carousel_{ts_ig}.pdf"
+                pdf_ig_url  = f"https://raw.githubusercontent.com/{REPO}/main/{pdf_ig_path}"
+                pdf_ig_ok = generate_carousel_pdf(
+                    "carousel_ig.pdf",
+                    h1=headline1, h2=headline2, hook=hook_text,
+                    stat_number=stat_number, stat_label=stat_label,
+                    stat_context=stat_context,
+                    compare_a_label=compare_a_label, compare_a_value=compare_a_value,
+                    compare_b_label=compare_b_label, compare_b_value=compare_b_value,
+                    fact1=fact1, fact2=fact2, fact3=fact3,
+                    takeaway=f"{fact1} {fact2}".strip() or headline2
+                )
+                if pdf_ig_ok:
+                    pushed_ig = push_to_github("carousel_ig.pdf", GITHUB_TOKEN, REPO, pdf_ig_path)
+                    if pushed_ig:
+                        time.sleep(5)
+                        ok_ig = post_to_buffer_document(ig_caption, pdf_ig_url, BUFFER_PROFILE_IG, BUFFER_API_KEY)
+                        print("Instagram PDF carousel: SUCCESS" if ok_ig else "Instagram PDF carousel: FAILED — falling back to single card")
+                        if ok_ig:
+                            ig_posted = True
+            if not ig_posted:
+                ok_ig = post_to_buffer(ig_caption, RAW_URL, BUFFER_PROFILE_IG, BUFFER_API_KEY, "Instagram")
+                print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
+        else:
+            print("Instagram: skipped — add BUFFER_PROFILE_IG to GitHub secrets")
     else:
         print("FAILED: GitHub push failed")
 else:
