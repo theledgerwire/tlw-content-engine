@@ -705,7 +705,7 @@ def get_photo(keyword, story_context="", used_images=None):
     return None, None
 
 # ── GRADIENT ──────────────────────────────────────────────────────
-def apply_gradient(img, start=0.30, style=None):
+def apply_gradient(img, start=0.15, style=None):
     if style is None:
         style = ACTIVE_STYLE
     op        = style["gradient_opacity"]
@@ -722,14 +722,16 @@ def apply_gradient(img, start=0.30, style=None):
         top_rgb     = (15, 10, 5)
     grad = Image.new("RGBA",(W,H),(0,0,0,0))
     gd   = ImageDraw.Draw(grad)
+    # Bottom gradient — stronger and starts earlier
     for y in range(int(H*start),H):
         t = float(y-H*start)/float(H*(1-start))
         t = max(0.0,min(1.0,t))
-        a = int(255*t**0.78 * op)
+        a = int(255*t**0.65 * op)
         gd.line([(0,y),(W,y)],fill=(*overlay_rgb,a))
-    for y in range(0,88):
-        t = 1-(y/88)
-        a = int(55*t**0.55 * op)
+    # Top brand bar overlay — stronger so brand text is always readable
+    for y in range(0,120):
+        t = 1-(y/120)
+        a = int(180*t**0.5 * op)
         gd.line([(0,y),(W,y)],fill=(*top_rgb,a))
     return Image.alpha_composite(img.convert("RGBA"),grad).convert("RGB")
 
@@ -785,19 +787,30 @@ KNOWN_COMPANIES = [
     "Federal Reserve","Fed","SEC","FTC","OPEC","NATO","EU",
 ]
 
+# Countries and generic words that should NEVER be used as company hero
+NOT_COMPANIES = {
+    "vietnam","china","india","japan","korea","russia","ukraine","iran","israel",
+    "france","germany","spain","italy","europe","asia","africa","america",
+    "big","tech","market","retail","traders","bank","banks","house","white",
+    "new","the","this","that","its","their","global","world","local",
+    "government","ministry","congress","senate","president","minister",
+}
+
 def extract_company(h2, story_title=""):
     """Extract the dominant company name from H2 or story title."""
     import re as _re
     text = f"{h2} {story_title}"
+    # Check known companies first (longest match wins)
     for co in sorted(KNOWN_COMPANIES, key=len, reverse=True):
         if co.lower() in text.lower():
             return co.upper()
+    # Fallback: grab first capitalised word — but filter out countries/generic words
     m = _re.match(r"([A-Z][A-Za-z&]+)", h2.strip())
     if m:
         word = m.group(1).rstrip(".,")
-        if len(word) >= 3:
+        if len(word) >= 3 and word.lower() not in NOT_COMPANIES:
             return word.upper()
-    return None
+    return None  # Return None — card will show H1 stat as hero instead
 
 def get_source_label(story_title=""):
     """Infer source from story context."""
@@ -844,7 +857,14 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
 
     # ── Measure all text blocks ──
     company_display = company_name if company_name else ""
-    co_lines  = wrap_text(draw, company_display, co_f, MTW) if company_display else []
+    has_company = bool(company_display)
+
+    # If no company found, bump H1 to 100pt as the hero element
+    if not has_company:
+        co_f = h1_f   # reuse h1 slot visually
+        h1_f = ImageFont.truetype(FONT_BOLD, 60)  # shrink h1 since it's secondary
+
+    co_lines  = wrap_text(draw, company_display, co_f, MTW) if has_company else []
     h1_lines  = wrap_text(draw, h1,  h1_f,  MTW)
     h2_lines  = wrap_text(draw, h2,  h2_f,  MTW)
     hook_lines= wrap_text(draw, hook, hook_f, MTW) if hook else []
