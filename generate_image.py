@@ -770,51 +770,142 @@ def draw_text_shadow(draw, pos, text, font, fill, shadow_color=(0,0,0), offset=3
     draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0))
     draw.text((x, y), text, font=font, fill=fill)
 
+# ── COMPANY NAME EXTRACTOR ────────────────────────────────────────
+KNOWN_COMPANIES = [
+    "OpenAI","Anthropic","Google","Microsoft","Apple","Amazon","Meta","Nvidia",
+    "Tesla","Oracle","Samsung","Intel","AMD","TSMC","Qualcomm","IBM","Salesforce",
+    "JPMorgan","Goldman Sachs","Goldman","BlackRock","Citigroup","Morgan Stanley",
+    "Wells Fargo","Bank of America","HSBC","Barclays","JPMorgan Chase",
+    "Coinbase","Binance","Bitcoin","Ethereum","Robinhood","PayPal","Stripe",
+    "SpaceX","Uber","Airbnb","Netflix","Spotify","TikTok","ByteDance",
+    "Alibaba","Tencent","Baidu","Huawei","SoftBank","Arm","ASML",
+    "Palantir","Snowflake","Databricks","Mistral","xAI","DeepMind",
+    "LinkedIn","Reddit","Shopify","Zoom","Slack","Adobe","Canva",
+    "Boeing","Lockheed","Pfizer","Moderna","Fervo","Factory","Lululemon",
+    "Federal Reserve","Fed","SEC","FTC","OPEC","NATO","EU",
+]
+
+def extract_company(h2, story_title=""):
+    """Extract the dominant company name from H2 or story title."""
+    import re as _re
+    text = f"{h2} {story_title}"
+    for co in sorted(KNOWN_COMPANIES, key=len, reverse=True):
+        if co.lower() in text.lower():
+            return co.upper()
+    m = _re.match(r"([A-Z][A-Za-z&]+)", h2.strip())
+    if m:
+        word = m.group(1).rstrip(".,")
+        if len(word) >= 3:
+            return word.upper()
+    return None
+
+def get_source_label(story_title=""):
+    """Infer source from story context."""
+    t = story_title.lower()
+    if "bloomberg" in t: return "Bloomberg"
+    if "reuters" in t:   return "Reuters"
+    if "wsj" in t or "wall street" in t: return "WSJ"
+    if "techcrunch" in t: return "TechCrunch"
+    if "ft" in t or "financial times" in t: return "FT"
+    if "coindesk" in t:  return "CoinDesk"
+    if "marketwatch" in t: return "MarketWatch"
+    return "TLW Research"
+
 # ── CARD: PHOTO ───────────────────────────────────────────────────
-def card_with_photo(img,h1,h2,hook=""):
-    draw=ImageDraw.Draw(img)
-    PAD=56
-    MTW=W-PAD-40
-    draw.rectangle([(0,0),(4,H-58)],fill=GOLD)   # thinner accent bar
-    logo_f=ImageFont.truetype(FONT_BOLD,20)
-    lb=draw.textbbox((0,0),"THE LEDGER WIRE",font=logo_f)
-    draw_text_shadow(draw,(PAD,36),"THE LEDGER WIRE",logo_f,WHITE,shadow_color=(0,0,0),offset=2)
-    draw.rectangle([(PAD,60),(PAD+lb[2]-lb[0],62)],fill=GOLD)   # thinner underline
-    h1_f=ImageFont.truetype(FONT_BOLD,90)
-    h2_f=ImageFont.truetype(FONT_BOLD,46)
-    hook_f=ImageFont.truetype(FONT_BOLD,46)
-    src_f=ImageFont.truetype(FONT_REG,20)
-    h1_lines=wrap_text(draw,h1,h1_f,MTW)
-    h2_lines=wrap_text(draw,h2,h2_f,MTW)
-    hook_lines=wrap_text(draw,hook,hook_f,MTW) if hook else []
-    h1_lh=draw.textbbox((0,0),"Ag",font=h1_f)[3]
-    h2_lh=draw.textbbox((0,0),"Ag",font=h2_f)[3]
-    hook_lh=draw.textbbox((0,0),"Ag",font=hook_f)[3]
-    src_h=draw.textbbox((0,0),"theledgerwire.com",font=src_f)[3]
-    th1=h1_lh*len(h1_lines)+4*max(0,len(h1_lines)-1)
-    th2=h2_lh*len(h2_lines)+4*max(0,len(h2_lines)-1)
-    thk=hook_lh*len(hook_lines)+4*max(0,len(hook_lines)-1)
-    SAFE=H-72-24
-    src_y=SAFE-src_h
-    hook_y=src_y-14-thk if hook else src_y
-    h2_y=hook_y-14-th2
-    h1_y=h2_y-10-th1
-    rule_y=h1_y-20
-    draw.rectangle([(PAD,rule_y),(PAD+52,rule_y+4)],fill=GOLD)
-    y=h1_y
-    for line in h1_lines:
-        draw_text_shadow(draw,(PAD,y),line,h1_f,WHITE,shadow_color=(0,0,0),offset=3); y+=h1_lh+4
-    y=h2_y
-    for line in h2_lines:
-        draw_text_shadow(draw,(PAD,y),line,h2_f,GOLD,shadow_color=(0,0,0),offset=2); y+=h2_lh+4
+def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
+    """Concept B: Company name as hero element, stat below, source badge top-right."""
+    draw = ImageDraw.Draw(img)
+    PAD  = 56
+    MTW  = W - PAD - 40
+
+    # ── Fonts ──
+    co_f    = ImageFont.truetype(FONT_BOLD, 100)  # company name — BIG
+    h1_f    = ImageFont.truetype(FONT_BOLD, 76)   # stat
+    h2_f    = ImageFont.truetype(FONT_BOLD, 38)   # description
+    hook_f  = ImageFont.truetype(FONT_BOLD, 36)   # hook
+    src_f   = ImageFont.truetype(FONT_REG,  18)
+    badge_f = ImageFont.truetype(FONT_BOLD, 16)
+    logo_f  = ImageFont.truetype(FONT_BOLD, 18)
+
+    # ── Top brand bar ──
+    draw_text_shadow(draw, (PAD, 34), "THE LEDGER WIRE", logo_f, WHITE, shadow_color=(0,0,0), offset=2)
+    lb = draw.textbbox((0,0), "THE LEDGER WIRE", font=logo_f)
+    draw.rectangle([(PAD, 56), (PAD + lb[2] - lb[0], 58)], fill=GOLD)
+
+    # ── Source badge top-right ──
+    src_label = source if source else "TLW"
+    sb = draw.textbbox((0,0), src_label, font=badge_f)
+    sb_w = sb[2] - sb[0] + 20
+    sb_x = W - PAD - sb_w
+    draw.rounded_rectangle([(sb_x, 28), (sb_x + sb_w, 28 + 28)], radius=4,
+                            fill=(255,255,255,40) if True else WHITE)
+    draw.rectangle([(sb_x, 28), (sb_x + sb_w, 28 + 28)], outline=GOLD, width=1)
+    draw.text((sb_x + 10, 32), src_label, font=badge_f, fill=GOLD)
+
+    # ── Measure all text blocks ──
+    company_display = company_name if company_name else ""
+    co_lines  = wrap_text(draw, company_display, co_f, MTW) if company_display else []
+    h1_lines  = wrap_text(draw, h1,  h1_f,  MTW)
+    h2_lines  = wrap_text(draw, h2,  h2_f,  MTW)
+    hook_lines= wrap_text(draw, hook, hook_f, MTW) if hook else []
+
+    co_lh  = draw.textbbox((0,0), "Ag", font=co_f)[3]
+    h1_lh  = draw.textbbox((0,0), "Ag", font=h1_f)[3]
+    h2_lh  = draw.textbbox((0,0), "Ag", font=h2_f)[3]
+    hk_lh  = draw.textbbox((0,0), "Ag", font=hook_f)[3]
+
+    tco  = co_lh  * min(len(co_lines), 2)  + 4
+    th1  = h1_lh  * min(len(h1_lines), 2)  + 4
+    th2  = h2_lh  * min(len(h2_lines), 2)  + 4
+    thk  = hk_lh  * min(len(hook_lines), 1)
+
+    # ── Layout from bottom up ──
+    SAFE   = H - 72 - 20
+    src_y  = SAFE - 20
+    hook_y = src_y  - 16 - thk if hook_lines else src_y
+    h2_y   = hook_y - 12 - th2
+    rule_y = h2_y   - 18
+    h1_y   = rule_y - 14 - th1
+    co_y   = h1_y   - 8  - tco
+
+    # Gold accent line between company and stat
+    draw.rectangle([(PAD, rule_y), (PAD + 56, rule_y + 4)], fill=GOLD)
+
+    # ── Company name — GOLD, massive ──
+    if co_lines:
+        y = co_y
+        for line in co_lines[:2]:
+            draw_text_shadow(draw, (PAD, y), line, co_f, GOLD,
+                             shadow_color=(0,0,0), offset=3)
+            y += co_lh + 4
+
+    # ── H1 stat — WHITE, bold ──
+    y = h1_y
+    for line in h1_lines[:2]:
+        draw_text_shadow(draw, (PAD, y), line, h1_f, WHITE,
+                         shadow_color=(0,0,0), offset=3)
+        y += h1_lh + 4
+
+    # ── H2 description — lighter white ──
+    y = h2_y
+    for line in h2_lines[:2]:
+        draw_text_shadow(draw, (PAD, y), line, h2_f,
+                         (210, 210, 210), shadow_color=(0,0,0), offset=2)
+        y += h2_lh + 4
+
+    # ── Hook — white italic feel ──
     if hook_lines:
-        y=hook_y
-        for line in hook_lines:
-            draw_text_shadow(draw,(PAD,y),line,hook_f,WHITE,shadow_color=(0,0,0),offset=2); y+=hook_lh+4
-    draw_text_shadow(draw,(PAD,src_y),"theledgerwire.com",src_f,DGREY,shadow_color=(0,0,0),offset=2)
+        draw_text_shadow(draw, (PAD, hook_y), hook_lines[0], hook_f,
+                         (180, 180, 180), shadow_color=(0,0,0), offset=2)
+
+    # ── Footer URL ──
+    draw_text_shadow(draw, (PAD, src_y), "theledgerwire.com", src_f,
+                     WHITE, shadow_color=(0,0,0), offset=1)
+
     draw_footer(draw)
-    img.save("card.png","PNG")
+    img.save("card.png", "PNG")
     print("Card saved (photo mode)")
+
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1,h2,support_lines=None,hook=""):
@@ -1310,9 +1401,12 @@ def generate_carousel_pdf(output_path, h1, h2, hook,
 def generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None,story_title="",story_summary=""):
     if used_images is None:
         used_images={}
+    company = extract_company(h2, story_title)
+    source  = get_source_label(story_title)
     photo,img_url=get_photo(keyword,story_context,used_images)
     if photo:
-        card_with_photo(apply_gradient(photo),h1,h2,hook)
+        card_with_photo(apply_gradient(photo), h1, h2, hook,
+                        company_name=company, source=source)
     else:
         card_no_photo(h1,h2,support_lines,hook)
         img_url=None
