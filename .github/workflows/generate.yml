@@ -1,5 +1,4 @@
 name: TLW Image Generator
-
 on:
   workflow_dispatch:
     inputs:
@@ -23,33 +22,28 @@ on:
         description: 'Pipe-separated headlines for weekly recap cards'
         required: false
         default: ''
-
 jobs:
   generate:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install dependencies
-        run: pip install pillow requests
-
+        run: pip install pillow requests reportlab
       - name: Install fonts
         run: sudo apt-get install -y fonts-liberation
-
       - name: Generate and post card
         env:
           BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
           BUFFER_PROFILE_X: ${{ secrets.BUFFER_PROFILE_X }}
           BUFFER_PROFILE_LI: ${{ secrets.BUFFER_PROFILE_LI }}
+          BUFFER_PROFILE_IG: ${{ secrets.BUFFER_PROFILE_IG }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
           PEXELS_KEY: ${{ secrets.PEXELS_KEY }}
           FAL_KEY: ${{ secrets.FAL_KEY }}
@@ -61,7 +55,6 @@ jobs:
           CARD_TYPE: ${{ github.event.inputs.card_type }}
           WEEKLY_HEADLINES: ${{ github.event.inputs.weekly_headlines }}
         run: python generate_image.py
-
       - name: Upload card as artifact (debug)
         if: always()
         uses: actions/upload-artifact@v4
