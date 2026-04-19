@@ -1712,11 +1712,11 @@ if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
 if not STORY_TITLE:
     print("No story title — exiting"); exit(0)
 
-# ── Check if story already processed ──
-used_stories = load_used_stories()
-if story_already_used(STORY_TITLE, used_stories):
-    print(f"DUPLICATE: Story already processed — skipping: {STORY_TITLE[:60]}")
-    exit(0)
+# ── Story dedup check — temporarily disabled, re-enable with research agent ──
+# used_stories = load_used_stories()
+# if story_already_used(STORY_TITLE, used_stories):
+#     print(f"DUPLICATE: Story already processed — skipping: {STORY_TITLE[:60]}")
+#     exit(0)
 
 claude_result=call_claude_news(STORY_TITLE,STORY_SUMMARY)
 if claude_result=="SKIP" or claude_result is None:
