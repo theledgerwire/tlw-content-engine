@@ -1527,6 +1527,51 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
     return False
 
 
+def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=2):
+    """Post to Instagram via Buffer — requires mediaType: IMAGE explicitly."""
+    print(f"Posting to Buffer Instagram...")
+    time.sleep(3)
+    def esc(s):
+        return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
+    safe_text = esc(post_text)
+    cid = channel_id.strip()
+    query = '''mutation CreatePost {
+  createPost(input: {
+    text: "%s",
+    channelId: "%s",
+    schedulingType: automatic,
+    mode: addToQueue,
+    mediaType: IMAGE,
+    assets: { images: [{ url: "%s" }] }
+  }) {
+    ... on PostActionSuccess { post { id text } }
+    ... on MutationError { message }
+  }
+}''' % (safe_text, cid, image_url)
+    for attempt in range(retries + 1):
+        try:
+            r = requests.post(
+                "https://api.buffer.com",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"query": query}, timeout=30
+            )
+            print(f"Buffer Instagram: {r.status_code} — {r.text[:300]}")
+            data = r.json()
+            post_data = data.get("data", {}).get("createPost", {})
+            if "errors" in data:
+                print(f"GraphQL errors: {data['errors']}")
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if "message" in post_data and "post" not in post_data:
+                print(f"Buffer Instagram error: {post_data['message']}")
+                if attempt < retries: time.sleep(5); continue
+                return False
+            return r.status_code == 200
+        except Exception as e:
+            print(f"Buffer Instagram exception: {e}")
+            if attempt < retries: time.sleep(5)
+    return False
+
 def post_to_buffer(post_text,image_url,channel_id,api_key,platform="",retries=2):
     print(f"Posting to Buffer {platform}...")
     time.sleep(3)
@@ -1595,6 +1640,10 @@ if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
                 time.sleep(3)
                 ok_li=post_to_buffer(linkedin_text,RAW_URL,BUFFER_PROFILE_LI,BUFFER_API_KEY,"LinkedIn")
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
+            if BUFFER_PROFILE_IG:
+                time.sleep(3)
+                ok_ig=post_to_buffer_instagram(ig_caption if 'ig_caption' in dir() else linkedin_text,RAW_URL,BUFFER_PROFILE_IG,BUFFER_API_KEY)
+                print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
     exit(0)
 
 # ── NEWS FLOW ─────────────────────────────────────────────────────
@@ -1756,7 +1805,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                         if ok_ig:
                             ig_posted = True
             if not ig_posted:
-                ok_ig = post_to_buffer(ig_caption, RAW_URL, BUFFER_PROFILE_IG, BUFFER_API_KEY, "Instagram")
+                ok_ig = post_to_buffer_instagram(ig_caption, RAW_URL, BUFFER_PROFILE_IG, BUFFER_API_KEY)
                 print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
         else:
             print("Instagram: skipped — add BUFFER_PROFILE_IG to GitHub secrets")
