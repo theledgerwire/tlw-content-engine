@@ -283,15 +283,15 @@ MANDATORY COVERAGE RULE — these two categories are ALWAYS TIER 1, never skip:
 2. MARKETS: Any story mentioning S&P 500, Nasdaq, Dow, stock market rally/crash/correction, sector rotation, VIX → always Tier 1
 These topics are core to TLW's audience. Never skip them regardless of other content.
 
-Reply in this EXACT format:
+Before writing, decide the angle:
+- CAREER IMPACT: "Your job in X just changed." — use when story affects jobs/roles/skills
+- MONEY IMPACT: "Your portfolio just got a new variable." — use for markets/valuations/earnings  
+- POWER SHIFT: "The company that X is now Y." — use for competition/disruption/bans
+
+Reply in this EXACT format (output ONLY the values, no labels or instructions):
 
 TIER: [1 or 2]
-TWEET: [Morning Brew style, STRICTLY under 220 chars, curiosity gap, never explain full story, end with -> theledgerwire.com #AI #Finance]
-  FRAMING PRIORITY — pick the angle that hits hardest:
-  1. CAREER IMPACT first: "Your job in [X sector] just changed." / "The role being automated isn't on the factory floor." / "This is hitting [profession] hardest."
-  2. MONEY impact: "Your portfolio just got a new variable." / "$X just moved from [A] to [B]."
-  3. POWER shift: "The company that [X] is now [Y]." / "[X] no longer controls [Y]."
-  NEVER write generic news headlines. Always write from the reader's personal perspective.
+TWEET: [STRICTLY under 220 chars. Write from reader's personal perspective — career, money, or power angle. Curiosity gap. Never explain the full story. End with -> theledgerwire.com #AI #Finance]
 LINKEDIN: [Morning Brew style. STRUCTURE:
   LINE 1: Career/personal impact hook — "If you work in [X], this week changed your job." / "The [profession] role just got harder to justify." / "Your [sector] competitors just got a new weapon."
   LINES 2-4: 2-3 short punchy paragraphs. What happened. Why it matters personally. The uncomfortable truth.
@@ -581,42 +581,33 @@ def generate_flux_prompt(title, summary, style=None):
 Story: {title}
 Summary: {summary}
 
-Write a Flux.1 image generation prompt. Rules:
-1. Be LITERAL and SPECIFIC to the story — describe exactly what object/place/thing represents it
-2. Photorealistic or bold stylised image that directly represents the story. NOT abstract art, NOT glitch art, NOT painterly, NOT fantasy
-3. CRITICAL — match this exact visual style: {style["flux_style"]}
-4. No text, no logos, no faces, no people
-5. Max 20 words
+Generate a Flux.1 image prompt for this financial news card. 
 
-Style-matched examples — use the example set that matches your assigned style:
+RULES:
+1. Match the story LITERALLY — what physical object, building, product, or scene best represents it?
+2. Style: {style["flux_style"]}
+3. NO text, NO logos, NO faces, NO people
+4. Must feel like editorial photography or premium stock — NOT generic tech backgrounds
+5. VARY the shot: close-up / wide angle / aerial / macro — not always the same framing
+6. Max 25 words
 
-DARK style examples:
-- Battery/EV: "Electric vehicle battery cells close up, blue glow, dark background, dramatic lighting, photorealistic"
-- Bitcoin: "Gold Bitcoin coin on dark surface, spotlight from above, bokeh background, photorealistic"
-- AI chips: "Nvidia GPU graphics card on dark surface, blue circuit glow, dramatic lighting, photorealistic"
-- Bank/finance: "Federal Reserve building columns at night, gold light, dark sky, photorealistic"
-- Layoffs: "Empty office chairs at night, blue computer screens, dark room, photorealistic"
+STORY-TO-VISUAL MAPPING:
+- IPO/stock listing → trading floor screens with green numbers, wide angle, dramatic lighting
+- AI company → specific product shot (not generic circuit boards) e.g. "Anthropic Claude interface on MacBook screen"
+- Crypto/Bitcoin → gold coin on dark marble, macro lens, shallow depth of field
+- Data centre/cloud → rows of server racks with blue LED lights, wide angle perspective
+- Job cuts/layoffs → empty open-plan office, chairs pushed in, late evening light
+- Defence/military tech → radar equipment or satellite dish, dramatic sky, photorealistic
+- IPO/valuation → NYSE or Nasdaq building facade, golden hour light
+- Oil/energy → oil refinery at dusk, orange sky reflection on water
+- Fed/interest rates → Federal Reserve building exterior, marble columns, overcast sky
+- Trade/tariffs → cargo containers stacked at port, aerial drone shot
+- Healthcare/pharma → laboratory glassware, clean white environment, macro
+- Semiconductor → silicon wafer close-up, iridescent rainbow surface, macro photography
 
-VIVID style examples:
-- Battery/EV: "Electric vehicle charging station, vivid electric blue and green neon glow, high contrast, photorealistic"
-- Bitcoin: "Gold Bitcoin coin, vibrant emerald and electric blue background, bold dramatic lighting, photorealistic"
-- AI chips: "Nvidia GPU circuit board, bold electric blue and green light trails, vivid high contrast, photorealistic"
-- Bank/finance: "Wall Street building facade, bold blue sky, vivid sunlight, high contrast cityscape, photorealistic"
-- Layoffs: "Modern office space flooded with vivid blue light, bold colour contrast, photorealistic"
+Your assigned style: {style["name"].upper()}
 
-WARM style examples:
-- Battery/EV: "Electric vehicle battery cells, warm amber and teal industrial glow, cinematic lighting, photorealistic"
-- Bitcoin: "Gold Bitcoin coin, rich amber light, deep teal background, premium editorial, photorealistic"
-- AI chips: "GPU chip close up, warm amber circuit glow, deep teal background, cinematic, photorealistic"
-- Bank/finance: "Federal Reserve building, warm golden sunset light, rich amber sky, cinematic, photorealistic"
-- Layoffs: "Empty office, warm amber desk lamps, teal window light at dusk, cinematic, photorealistic"
-
-Your assigned style is: {style["name"].upper()}. Use ONLY that style's examples as reference.
-
-NEVER use: horses, warriors, abstract art, mythology, fantasy elements, animals unrelated to story.
-ALWAYS use: real objects, real places, real technology that directly relates to the story.
-
-Reply with ONLY the prompt. No quotes, no explanation."""
+Reply ONLY with the image prompt. No explanation."""
 
         r = requests.post(
             "https://api.anthropic.com/v1/messages",
@@ -822,7 +813,8 @@ def get_source_label(story_title=""):
     if "ft" in t or "financial times" in t: return "FT"
     if "coindesk" in t:  return "CoinDesk"
     if "marketwatch" in t: return "MarketWatch"
-    return "TLW Research"
+    if "ai news" in t or "artificialintelligence" in t: return "AI News"
+    return ""   # No badge if source unknown — cleaner than "TLW Research"
 
 # ── CARD: PHOTO ───────────────────────────────────────────────────
 def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
@@ -845,15 +837,13 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
     lb = draw.textbbox((0,0), "THE LEDGER WIRE", font=logo_f)
     draw.rectangle([(PAD, 56), (PAD + lb[2] - lb[0], 58)], fill=GOLD)
 
-    # ── Source badge top-right ──
-    src_label = source if source else "TLW"
-    sb = draw.textbbox((0,0), src_label, font=badge_f)
-    sb_w = sb[2] - sb[0] + 20
-    sb_x = W - PAD - sb_w
-    draw.rounded_rectangle([(sb_x, 28), (sb_x + sb_w, 28 + 28)], radius=4,
-                            fill=(255,255,255,40) if True else WHITE)
-    draw.rectangle([(sb_x, 28), (sb_x + sb_w, 28 + 28)], outline=GOLD, width=1)
-    draw.text((sb_x + 10, 32), src_label, font=badge_f, fill=GOLD)
+    # ── Source badge top-right — only if we have a real source ──
+    if source:
+        sb = draw.textbbox((0,0), source, font=badge_f)
+        sb_w = sb[2] - sb[0] + 20
+        sb_x = W - PAD - sb_w
+        draw.rectangle([(sb_x, 28), (sb_x + sb_w, 56)], outline=GOLD, width=1)
+        draw.text((sb_x + 10, 36), source, font=badge_f, fill=GOLD)
 
     # ── Measure all text blocks ──
     company_display = company_name if company_name else ""
