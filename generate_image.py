@@ -1603,7 +1603,6 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
     channelId: "%s",
     schedulingType: automatic,
     mode: addToQueue,
-    mediaType: IMAGE,
     assets: { images: [{ url: "%s" }] }
   }) {
     ... on PostActionSuccess { post { id text } }
