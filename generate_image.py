@@ -160,6 +160,68 @@ USED_IMAGES_PATH = "data/used_images.json"
 USED_IMAGES_URL  = f"https://raw.githubusercontent.com/{REPO}/main/{USED_IMAGES_PATH}?t={int(time.time())}"
 IMAGE_EXPIRY_SEC = 7 * 86400  # 7 days
 
+# ── STORY DEDUPLICATION ───────────────────────────────────────────
+USED_STORIES_PATH = "data/used_stories.json"
+
+def load_used_stories():
+    """Load set of already-processed story title hashes from GitHub."""
+    try:
+        headers = {"Authorization": f"Bearer {GITHUB_TOKEN}",
+                   "Accept": "application/vnd.github.v3+json"}
+        r = requests.get(
+            f"https://api.github.com/repos/{REPO}/contents/{USED_STORIES_PATH}",
+            headers=headers, timeout=10
+        )
+        if r.status_code == 200:
+            import base64 as _b64, json as _json
+            data = _b64.b64decode(r.json()["content"]).decode("utf-8")
+            return set(_json.loads(data).get("hashes", []))
+    except Exception as e:
+        print(f"Could not load used stories: {e}")
+    return set()
+
+def save_used_story(title_hash):
+    """Append a story hash to used_stories.json on GitHub."""
+    try:
+        import json as _json, base64 as _b64
+        headers = {"Authorization": f"Bearer {GITHUB_TOKEN}",
+                   "Accept": "application/vnd.github.v3+json"}
+        # Get current file
+        r = requests.get(
+            f"https://api.github.com/repos/{REPO}/contents/{USED_STORIES_PATH}",
+            headers=headers, timeout=10
+        )
+        existing = set()
+        sha = None
+        if r.status_code == 200:
+            data = _b64.b64decode(r.json()["content"]).decode("utf-8")
+            existing = set(_json.loads(data).get("hashes", []))
+            sha = r.json().get("sha")
+        existing.add(title_hash)
+        # Keep last 200 hashes only
+        hashes_list = list(existing)[-200:]
+        content_str = _json.dumps({"hashes": hashes_list}, indent=2)
+        encoded = _b64.b64encode(content_str.encode()).decode()
+        payload = {"message": "Update used stories", "content": encoded, "branch": "main"}
+        if sha:
+            payload["sha"] = sha
+        requests.put(
+            f"https://api.github.com/repos/{REPO}/contents/{USED_STORIES_PATH}",
+            headers=headers, json=payload, timeout=15
+        )
+    except Exception as e:
+        print(f"Could not save used story: {e}")
+
+def story_hash(title):
+    """Create a short hash from story title for dedup."""
+    import hashlib
+    return hashlib.md5(title.lower().strip()[:80].encode()).hexdigest()[:12]
+
+def story_already_used(title, used_stories):
+    """Check if this story title was already processed."""
+    h = story_hash(title)
+    return h in used_stories
+
 def load_used_images():
     try:
         r = requests.get(USED_IMAGES_URL, timeout=10)
@@ -1650,6 +1712,12 @@ if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
 if not STORY_TITLE:
     print("No story title — exiting"); exit(0)
 
+# ── Check if story already processed ──
+used_stories = load_used_stories()
+if story_already_used(STORY_TITLE, used_stories):
+    print(f"DUPLICATE: Story already processed — skipping: {STORY_TITLE[:60]}")
+    exit(0)
+
 claude_result=call_claude_news(STORY_TITLE,STORY_SUMMARY)
 if claude_result=="SKIP" or claude_result is None:
     print("Story skipped — exiting"); exit(0)
@@ -1809,6 +1877,9 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                 print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
         else:
             print("Instagram: skipped — add BUFFER_PROFILE_IG to GitHub secrets")
+        # ── Mark story as used ──────────────────────────────────
+        save_used_story(story_hash(STORY_TITLE))
+        print(f"Story hash saved: {story_hash(STORY_TITLE)}")
     else:
         print("FAILED: GitHub push failed")
 else:
