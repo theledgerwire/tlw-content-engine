@@ -42,14 +42,16 @@ def research_todays_stories(used_hashes):
 
     prompt = f"""Research editor for The Ledger Wire (AI & Finance newsletter). Today: {today}.
 
-Search for TOP 9 AI/finance/tech stories from the LAST 24 HOURS only.
+Search for TOP 9 AI/finance/tech stories from the LAST 48 HOURS.
 
 Audience: finance professionals, investors, founders.
 Must include: 1 crypto story + 1 markets/S&P story.
 Prefer stories with dollar amounts, percentages, or job numbers.
 Exclude: sports, celebrity, lifestyle.
 
-Reply ONLY with a valid JSON array of 9 objects. No markdown, no explanation:
+IMPORTANT: You MUST return exactly 9 stories. If recent news is limited, use the most recent stories available from the past week. Always return the JSON array — never explain or refuse.
+
+Reply ONLY with a valid JSON array of 9 objects. No markdown, no preamble, start directly with [:
 [{{"title":"12 word max headline","summary":"2 sentences with key numbers","source":"Bloomberg","keyword":"specific 4-word image search","stat":"$Xbn"}}]"""
 
     try:
@@ -61,8 +63,8 @@ Reply ONLY with a valid JSON array of 9 objects. No markdown, no explanation:
                 "content-type": "application/json"
             },
             json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 1500,
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 2000,
                 "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
                 "messages": [{"role": "user", "content": prompt}]
             },
