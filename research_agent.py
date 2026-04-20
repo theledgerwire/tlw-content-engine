@@ -40,46 +40,17 @@ def research_todays_stories(used_hashes):
     today = datetime.now(timezone.utc).strftime("%B %d, %Y")
     print(f"Researching top stories for {today}...")
 
-    prompt = f"""You are the research editor for The Ledger Wire, a daily AI & Finance newsletter.
+    prompt = f"""Research editor for The Ledger Wire (AI & Finance newsletter). Today: {today}.
 
-Today is {today}.
+Search for TOP 9 AI/finance/tech stories from the LAST 24 HOURS only.
 
-Search the web and find the TOP 9 most impactful AI, finance, and tech stories published TODAY or in the last 24 hours.
+Audience: finance professionals, investors, founders.
+Must include: 1 crypto story + 1 markets/S&P story.
+Prefer stories with dollar amounts, percentages, or job numbers.
+Exclude: sports, celebrity, lifestyle.
 
-TLW audience: finance professionals, investors, tech executives, founders. They care about:
-- AI company news (OpenAI, Anthropic, Google, Microsoft, Meta, Nvidia, xAI)
-- Markets (S&P, Nasdaq, crypto — Bitcoin, Ethereum)
-- Big tech earnings, IPOs, M&A deals
-- AI disruption to jobs, industries, business models
-- Energy/infrastructure powering AI
-- Regulatory moves (SEC, FTC, EU AI Act, Fed)
-- Fintech, banking, trading
-
-STRICT RULES:
-- Only stories from TODAY or last 24 hours — no old news
-- Pick stories with the highest career/money/power impact for TLW readers
-- Must include at least 1 crypto story and 1 markets/S&P story
-- Prefer stories with a specific dollar amount, percentage, or number
-- No celebrity gossip, no sports, no lifestyle content
-
-For each story write:
-- title: punchy headline (max 12 words)
-- summary: 2-3 sentence factual summary with key numbers
-- source: publication name (Bloomberg/Reuters/WSJ/FT/TechCrunch/CoinDesk etc)
-- keyword: 4-5 word image search term for a SPECIFIC visual (not "finance technology")
-- stat: the key number ($Xbn / X% / X,000 jobs)
-
-Reply ONLY with a JSON array of exactly 9 objects. No markdown, no explanation.
-Example format:
-[
-  {{
-    "title": "Snap cuts 1,000 jobs citing AI efficiency",
-    "summary": "Snap eliminated 16% of its workforce citing AI-driven efficiency gains...",
-    "source": "CNBC",
-    "keyword": "empty modern office abandoned chairs",
-    "stat": "1,000"
-  }}
-]"""
+Reply ONLY with a valid JSON array of 9 objects. No markdown, no explanation:
+[{{"title":"12 word max headline","summary":"2 sentences with key numbers","source":"Bloomberg","keyword":"specific 4-word image search","stat":"$Xbn"}}]"""
 
     try:
         r = requests.post(
@@ -90,9 +61,9 @@ Example format:
                 "content-type": "application/json"
             },
             json={
-                "model": "claude-sonnet-4-6",
-                "max_tokens": 3000,
-                "tools": [{"type": "web_search_20250305", "name": "web_search"}],
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 1500,
+                "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
                 "messages": [{"role": "user", "content": prompt}]
             },
             timeout=120
@@ -220,8 +191,8 @@ def main():
         # Stagger triggers — 90 seconds between each
         # This spreads 9 posts across ~13 minutes matching Buffer queue slots
         if i < len(stories) - 1:
-            print(f"  Waiting 90s before next trigger...")
-            time.sleep(90)
+            print(f"  Waiting 60s before next trigger...")
+            time.sleep(60)
 
     print("\n" + "=" * 60)
     print(f"Done — {triggered}/{len(stories)} workflows triggered")
