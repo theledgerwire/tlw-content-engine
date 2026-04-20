@@ -1601,9 +1601,8 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
   createPost(input: {
     text: "%s",
     channelId: "%s",
-    schedulingType: automatic,
+    schedulingType: reminder,
     mode: addToQueue,
-    serviceType: image,
     assets: { images: [{ url: "%s" }] }
   }) {
     ... on PostActionSuccess { post { id text } }
