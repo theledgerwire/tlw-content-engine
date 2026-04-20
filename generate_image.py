@@ -1590,31 +1590,47 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
 
 
 def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=2):
-    """Post to Instagram via Buffer REST API v1."""
+    """Post to Instagram via Buffer GraphQL."""
     print(f"Posting to Buffer Instagram...")
     time.sleep(3)
+    def esc(s):
+        return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
+    safe_text = esc(post_text)
     cid = channel_id.strip()
+    query = '''mutation CreatePost {
+  createPost(input: {
+    text: "%s",
+    channelId: "%s",
+    schedulingType: automatic,
+    mode: addToQueue,
+    serviceType: image,
+    assets: { images: [{ url: "%s" }] }
+  }) {
+    ... on PostActionSuccess { post { id text } }
+    ... on MutationError { message }
+  }
+}''' % (safe_text, cid, image_url)
     for attempt in range(retries + 1):
         try:
             r = requests.post(
-                "https://api.bufferapp.com/1/updates/create.json",
-                headers={"Authorization": f"Bearer {api_key}"},
-                data={
-                    "text": post_text[:2200],
-                    "profile_ids[]": cid,
-                    "media[photo]": image_url,
-                    "media[thumbnail]": image_url,
-                },
-                timeout=30
+                "https://api.buffer.com",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"query": query}, timeout=30
             )
             print(f"Buffer Instagram: {r.status_code} — {r.text[:300]}")
             data = r.json()
-            if data.get("success") or r.status_code == 200 and "updates" in data:
+            post_data = data.get("data", {}).get("createPost", {})
+            if "errors" in data:
+                print(f"GraphQL errors: {data['errors']}")
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if "message" in post_data and "post" not in post_data:
+                print(f"Buffer Instagram error: {post_data['message']}")
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if post_data.get("post", {}).get("id"):
                 print("Instagram: SUCCESS")
                 return True
-            err = data.get("message", data.get("error", "Unknown error"))
-            print(f"Buffer Instagram error: {err}")
-            if attempt < retries: time.sleep(5); continue
             return False
         except Exception as e:
             print(f"Buffer Instagram exception: {e}")
