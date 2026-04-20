@@ -1559,13 +1559,13 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
         '    channelId: "%s",\n'
         '    schedulingType: automatic,\n'
         '    mode: addToQueue,\n'
-        '    assets: { documents: [{ url: "%s", title: "The Ledger Wire" }] }\n'
+        '    assets: { documents: [{ url: "%s", title: "The Ledger Wire", thumbnailUrl: "%s" }] }\n'
         '  }) {\n'
         '    ... on PostActionSuccess { post { id text } }\n'
         '    ... on MutationError { message }\n'
         '  }\n'
         '}'
-    ) % (safe_text, cid, doc_url)
+    ) % (safe_text, cid, doc_url, doc_url)
     for attempt in range(retries + 1):
         try:
             r = requests.post(
@@ -1590,44 +1590,32 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
 
 
 def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=2):
-    """Post to Instagram via Buffer — requires mediaType: IMAGE explicitly."""
+    """Post to Instagram via Buffer REST API v1."""
     print(f"Posting to Buffer Instagram...")
     time.sleep(3)
-    def esc(s):
-        return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
-    safe_text = esc(post_text)
     cid = channel_id.strip()
-    query = '''mutation CreatePost {
-  createPost(input: {
-    text: "%s",
-    channelId: "%s",
-    schedulingType: automatic,
-    mode: addToQueue,
-    assets: { images: [{ url: "%s" }] }
-  }) {
-    ... on PostActionSuccess { post { id text } }
-    ... on MutationError { message }
-  }
-}''' % (safe_text, cid, image_url)
     for attempt in range(retries + 1):
         try:
             r = requests.post(
-                "https://api.buffer.com",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"query": query}, timeout=30
+                "https://api.bufferapp.com/1/updates/create.json",
+                headers={"Authorization": f"Bearer {api_key}"},
+                data={
+                    "text": post_text[:2200],
+                    "profile_ids[]": cid,
+                    "media[photo]": image_url,
+                    "media[thumbnail]": image_url,
+                },
+                timeout=30
             )
             print(f"Buffer Instagram: {r.status_code} — {r.text[:300]}")
             data = r.json()
-            post_data = data.get("data", {}).get("createPost", {})
-            if "errors" in data:
-                print(f"GraphQL errors: {data['errors']}")
-                if attempt < retries: time.sleep(5); continue
-                return False
-            if "message" in post_data and "post" not in post_data:
-                print(f"Buffer Instagram error: {post_data['message']}")
-                if attempt < retries: time.sleep(5); continue
-                return False
-            return r.status_code == 200
+            if data.get("success") or r.status_code == 200 and "updates" in data:
+                print("Instagram: SUCCESS")
+                return True
+            err = data.get("message", data.get("error", "Unknown error"))
+            print(f"Buffer Instagram error: {err}")
+            if attempt < retries: time.sleep(5); continue
+            return False
         except Exception as e:
             print(f"Buffer Instagram exception: {e}")
             if attempt < retries: time.sleep(5)
