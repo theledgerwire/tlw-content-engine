@@ -1559,7 +1559,7 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
         '    channelId: "%s",\n'
         '    schedulingType: automatic,\n'
         '    mode: addToQueue,\n'
-        '    assets: { documents: [{ url: "%s" }] }\n'
+        '    assets: { documents: [{ url: "%s", title: "The Ledger Wire" }] }\n'
         '  }) {\n'
         '    ... on PostActionSuccess { post { id text } }\n'
         '    ... on MutationError { message }\n'
@@ -1603,7 +1603,6 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
     channelId: "%s",
     schedulingType: automatic,
     mode: addToQueue,
-    instagramPostType: POST,
     assets: { images: [{ url: "%s" }] }
   }) {
     ... on PostActionSuccess { post { id text } }
