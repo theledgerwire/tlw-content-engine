@@ -97,24 +97,38 @@ Line 1 = the key fact. Line 2 = the consequence.
 Good: "Kelp DAO drained via LayerZero bridge." / "18% of rsETH supply — gone."
 Good: "Longest positive run since 1992." / "S&P -0.24% as Iran tensions return."
 
-IMAGE ANGLE — TLW VISUAL DNA
-Every image MUST follow this formula:
-[single cinematic subject] + [deep navy background] + [gold accent lighting] + [volumetric light / shallow DOF] + [photorealistic editorial style]
+IMAGE ANGLE — TLW VISUAL DNA (THIS IS CRITICAL FOR IMAGE QUALITY)
+Every image_angle MUST be 40-70 words. Short prompts produce generic images. Match the reference angles below EXACTLY in specificity and length.
+
+MANDATORY STRUCTURE — every image_angle must include ALL 6 elements in this order:
+1. SUBJECT: One specific physical object with material detail (e.g. "cracked navy vault door with molten gold bleeding through fractures" NOT "vault" or "broken door")
+2. SETTING: Where it sits (e.g. "on wet cobblestone street" / "in polished marble room" / "against deep navy sky")
+3. GOLD ELEMENT: How gold appears (e.g. "molten gold bleeding through", "warm gold light rays from the left", "gold sunset glow on glass")
+4. CAMERA: Angle and lens (e.g. "cinematic low-angle shot" / "macro lens shallow DOF" / "wide-angle aerial perspective")
+5. LIGHTING: Direction and quality (e.g. "dramatic side lighting from the right" / "volumetric gold light rays" / "warm backlight with lens flare")
+6. SUFFIX: Always end with "photorealistic editorial photograph, deep navy and gold palette"
 
 Rules:
-- Subject is ONE specific object/scene — never abstract, never patterns, never collages
-- Dominant colors: deep navy (#0A1628) + gold (#F5C518) accents
-- Gold appears as light rays, reflections, highlights, molten metal, or glowing elements
-- Shallow depth of field / cinematic low angle / dramatic side lighting preferred
-- Subject positioned so text on left/bottom has breathing room (negative space bottom-left)
+- Subject is ONE specific physical object/scene — never abstract cursors, never floating shapes, never patterns, never collages
+- Think REAL WORLD objects: vault doors, bronze statues, glass buildings, gold coins, server racks, cargo ships, marble columns — not digital concepts
+- Dominant colors: deep navy (#0A1628) background + gold (#F5C518) accents
+- Subject positioned right-of-center or upper-half so text on left/bottom has breathing room
 - NO text in image. NO logos. NO faces. NO people. NO copyrighted characters.
+- NO abstract art, NO digital wireframes, NO floating geometric shapes, NO cursor icons
 
-Reference angles that scored perfectly (match this caliber):
+Reference angles that scored perfectly — MATCH THIS LENGTH AND SPECIFICITY:
 - Kelp hack: "Cracked navy vault door with molten gold bleeding through fractures, crystal shards scattered on the polished floor below, dramatic side lighting from the right, volumetric gold light rays, deep navy and gold palette, photorealistic editorial photograph, shallow depth of field"
 - Nasdaq streak: "Bronze Wall Street charging bull on wet cobblestone street at dusk, subtle hairline crack on its bronze flank, warm gold light rays streaming from the left, blurred financial district buildings in background, cinematic low-angle shot, deep navy sky, photorealistic"
 - Anthropic ARR: "Two modern glass skyscrapers at dusk against deep navy sky, the taller tower bathed in warm golden sunset light and glowing from within, the shorter tower muted and cool in shadow, volumetric gold light rays between them, cinematic editorial photograph, shallow depth of field"
-- Bitcoin < $75K: "Single gold Bitcoin coin falling diagonally through deep navy space, motion blur trail of gold light behind it, subtle downward arrow formed by light rays, dramatic volumetric lighting, photorealistic, editorial magazine style"
-- Tim Cook: "Solitary silhouetted figure walking down a long dark modern hallway toward a large glowing gold apple-shape of light at the end, dramatic gold light rays emanating from the far end, photorealistic cinematic editorial, deep navy and gold palette"
+- Bitcoin drop: "Single gold Bitcoin coin falling diagonally through deep navy space, motion blur trail of gold light behind it, subtle downward arrow formed by light rays, dramatic volumetric lighting, photorealistic, editorial magazine style"
+- Apple CEO: "Solitary silhouetted figure walking down a long dark modern hallway toward a large glowing gold apple-shape of light at the end, dramatic gold light rays emanating from the far end, photorealistic cinematic editorial, deep navy and gold palette"
+- Dell servers: "Long data center aisle with rows of dark server racks on both sides, warm gold LED indicators glowing through glass panels, volumetric light rays streaming down the corridor, cinematic wide-angle perspective, deep navy and gold palette, photorealistic editorial photograph"
+- iPhone China: "Premium smartphone lying face-up on a polished dark surface with gold dragon etching underneath, Shanghai skyline with Oriental Pearl Tower blurred in background at sunset, warm gold light rays, cinematic shallow depth of field, photorealistic editorial"
+
+COMMON MISTAKES TO AVOID:
+- "Digital cursor floating in space" → Too abstract. Use: "Illuminated computer mouse on dark marble desk with gold light reflecting off its surface"
+- "AI neural network visualization" → Too abstract. Use: "Single GPU chip on dark surface with gold circuit traces glowing, macro lens extreme close-up"
+- "Financial charts and graphs" → Too generic. Use: "Stack of gold bars on a dark marble trading desk, NYSE screens blurred in background"
 
 OUTPUT FORMAT — CRITICAL
 Your ENTIRE response must be a valid JSON array and nothing else.
