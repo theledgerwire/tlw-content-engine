@@ -75,19 +75,34 @@ stat_hook (goes in GOLD, huge): 2-7 characters MAX. Must be one of:
 - Power word (RARE, only when no number fits): "BANNED" / "OVER" / "ZERO"
 NEVER use full sentences. NEVER exceed 7 characters. Must be readable at 150pt font.
 
-sub_headline (goes in WHITE, medium): 2-5 words. MUST end with a period. Reveals the 'quiet part.'
-Good examples (copy this exact energy):
-- "Biggest hack of 2026."
-- "Nasdaq's streak ends."
-- "Apple bet on hardware. Again."
-- "Anthropic leads."
-- "Dell, re-rated."
-- "Bitcoin breaks support."
-- "Stolen in April alone."
-Bad examples (do NOT do this):
-- "This is important news today" (too long, no edge)
-- "Market reacts" (weak verb)
-- "Company announces earnings" (pure wire)
+sub_headline (goes in WHITE, medium): 3-8 words. MUST end with a period.
+
+THE TWO-LINE STORY TEST — CRITICAL:
+A reader scrolling their feed will ONLY see stat_hook + sub_headline.
+Together, these two lines MUST answer: "What happened?" and "To whom?"
+
+RULE: If the stat_hook is a dollar amount or percentage, it's self-explanatory.
+The sub can be punchy/atmospheric.
+  "$292M" + "Biggest hack of 2026." → ✅ Dollar explains itself
+  "$2.4B" + "ChatGPT sells clicks now." → ✅ Dollar + what changed
+  "+20%" + "Apple in China." → ✅ Percentage + where
+
+RULE: If the stat_hook is a COUNT, DATE, or POWER WORD, it's ambiguous.
+The sub MUST explain what the number means.
+  "13 DAYS" + "Nasdaq's streak ends." → ❌ What 13 days? What streak? Not clear enough
+  "13 DAYS" + "Longest Nasdaq rally since '92, snapped." → ✅ Full story in two lines
+  "SEPT 1" + "Apple bet on hardware. Again." → ❌ What's Sept 1? Who?
+  "SEPT 1" + "Cook steps down. Ternus takes Apple." → ✅ Full story in two lines
+  "BANNED" + "Deepfakes go dark." → ❌ Who banned what?
+  "BANNED" + "EU outlaws all AI deepfakes." → ✅ Full story
+
+Good sub_headlines:
+- "Cook steps down. Ternus takes Apple."
+- "Longest Nasdaq rally since '92, snapped."
+- "Amazon locks in Anthropic."
+- "Biggest DeFi hack of 2026."
+- "Dell re-rated on AI server demand."
+- "Stolen from crypto in April alone."
 
 tagline (closing line in caption): 5-8 words. Sharp, contrarian.
 Good: "Only one of those pays the bills." / "The flip nobody was modeling." / "Risk-off is back."
@@ -149,7 +164,7 @@ Format:
   "source": "Bloomberg / Reuters / CoinDesk / etc",
   "published_hours_ago": 12,
   "stat_hook": "$30B",
-  "sub_headline": "Anthropic leads.",
+  "sub_headline": "Anthropic ARR overtakes OpenAI.",
   "tagline": "Only one of those pays the bills.",
   "body_line_1": "ARR now possibly ahead of OpenAI.",
   "body_line_2": "Money-loser to leader — in months.",
