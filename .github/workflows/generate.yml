@@ -1,64 +1,70 @@
-name: TLW Image Generator
+name: TLW Content Engine
+
 on:
   workflow_dispatch:
     inputs:
       story_title:
-        description: 'Story title from RSS'
+        description: 'Story title (base64 encoded)'
         required: false
         default: ''
       story_summary:
-        description: 'Story summary from RSS'
+        description: 'Story summary (base64 encoded)'
         required: false
         default: ''
       image_keyword:
-        description: 'Image search keyword'
+        description: 'Image search keyword fallback'
         required: false
         default: 'finance technology'
       card_type:
-        description: 'Card type: news | weekly_tuesday | weekly_friday'
+        description: 'Card type: news / weekly_tuesday / weekly_friday'
         required: false
         default: 'news'
       weekly_headlines:
-        description: 'Pipe-separated headlines for weekly recap cards'
+        description: 'Headlines for weekly recap (pipe-separated)'
         required: false
         default: ''
+      story_blob:
+        description: 'Enriched TLW story JSON (base64 encoded) — passed from research_agent v2'
+        required: false
+        default: ''
+
 jobs:
   generate:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install dependencies
-        run: pip install pillow requests reportlab
-      - name: Install fonts
-        run: sudo apt-get install -y fonts-liberation
+        run: |
+          python -m pip install --upgrade pip
+          pip install pillow requests reportlab
+
       - name: Generate and post card
         env:
-          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
-          BUFFER_PROFILE_X: ${{ secrets.BUFFER_PROFILE_X }}
+          # Story inputs (from research_agent v2)
+          STORY_TITLE:       ${{ github.event.inputs.story_title }}
+          STORY_SUMMARY:     ${{ github.event.inputs.story_summary }}
+          IMAGE_KEYWORD:     ${{ github.event.inputs.image_keyword }}
+          CARD_TYPE:         ${{ github.event.inputs.card_type }}
+          WEEKLY_HEADLINES:  ${{ github.event.inputs.weekly_headlines }}
+          STORY_BLOB:        ${{ github.event.inputs.story_blob }}
+
+          # API credentials
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BUFFER_API_KEY:    ${{ secrets.BUFFER_API_KEY }}
+          BUFFER_PROFILE_X:  ${{ secrets.BUFFER_PROFILE_X }}
           BUFFER_PROFILE_LI: ${{ secrets.BUFFER_PROFILE_LI }}
           BUFFER_PROFILE_IG: ${{ secrets.BUFFER_PROFILE_IG }}
-          UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
-          PEXELS_KEY: ${{ secrets.PEXELS_KEY }}
-          FAL_KEY: ${{ secrets.FAL_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          STORY_TITLE: ${{ github.event.inputs.story_title }}
-          STORY_SUMMARY: ${{ github.event.inputs.story_summary }}
-          IMAGE_KEYWORD: ${{ github.event.inputs.image_keyword }}
-          CARD_TYPE: ${{ github.event.inputs.card_type }}
-          WEEKLY_HEADLINES: ${{ github.event.inputs.weekly_headlines }}
-        run: python generate_image.py
-      - name: Upload card as artifact (debug)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: card-output
-          path: card.png
-          retention-days: 3
+          UNSPLASH_KEY:      ${{ secrets.UNSPLASH_KEY }}
+          PEXELS_KEY:        ${{ secrets.PEXELS_KEY }}
+          FAL_KEY:           ${{ secrets.FAL_KEY }}
+          GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python generate_image.py
