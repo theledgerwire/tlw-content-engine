@@ -105,9 +105,22 @@ GOLD      = (245, 197, 24)
 WHITE     = (255, 255, 255)
 NAVY      = (10, 22, 40)
 DGREY     = (100, 115, 148)
+BODY_GREY = (190, 200, 215)
 BLACK     = (20, 20, 20)
-FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
-FONT_REG  = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+FOOTER_H  = 60
+
+# Poppins (premium) — installed via workflow YAML. Falls back to Liberation if missing.
+_POPPINS_BOLD = "/usr/share/fonts/truetype/poppins/Poppins-Bold.ttf"
+_POPPINS_MED  = "/usr/share/fonts/truetype/poppins/Poppins-Medium.ttf"
+_POPPINS_REG  = "/usr/share/fonts/truetype/poppins/Poppins-Regular.ttf"
+_LIB_BOLD     = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+_LIB_REG      = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+
+import os as _os
+FONT_BOLD = _POPPINS_BOLD if _os.path.exists(_POPPINS_BOLD) else _LIB_BOLD
+FONT_MED  = _POPPINS_MED  if _os.path.exists(_POPPINS_MED)  else _LIB_BOLD
+FONT_REG  = _POPPINS_REG  if _os.path.exists(_POPPINS_REG)  else _LIB_REG
+print(f"Fonts: {'Poppins' if 'poppins' in FONT_BOLD else 'Liberation (fallback)'}")
 
 # ── PHOTO SOURCES ─────────────────────────────────────────────────
 PHOTO_FALLBACKS = [
@@ -904,91 +917,110 @@ def get_source_label(story_title=""):
     return ""
 
 # ── CARD: PHOTO ───────────────────────────────────────────────────
-def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
+def card_with_photo(img,h1,h2,hook="",company_name=None,source="",support_lines=None):
+    """
+    TLW v18 card template — matches manual design:
+    Gold left bar | top mark + source badge | gold stat hero |
+    white sub | gold rule | 2 grey body lines | gold footer
+    """
     draw = ImageDraw.Draw(img)
-    PAD  = 56
-    MTW  = W - PAD - 40
+    PAD     = 50
+    MTW     = W - PAD - 40
+    FTR_H   = 72  # footer height
 
-    co_f    = ImageFont.truetype(FONT_BOLD, 100)
-    h1_f    = ImageFont.truetype(FONT_BOLD, 76)
-    h2_f    = ImageFont.truetype(FONT_BOLD, 38)
-    hook_f  = ImageFont.truetype(FONT_BOLD, 36)
-    src_f   = ImageFont.truetype(FONT_REG,  18)
+    # ── Fonts ──
+    mark_f  = ImageFont.truetype(FONT_BOLD, 22)
     badge_f = ImageFont.truetype(FONT_BOLD, 16)
-    logo_f  = ImageFont.truetype(FONT_BOLD, 18)
+    h1_f    = ImageFont.truetype(FONT_BOLD, 150)  # gold stat — hero size
+    h2_f    = ImageFont.truetype(FONT_BOLD, 64)   # white sub-headline
+    body_f  = ImageFont.truetype(FONT_MED,  26)   # grey body lines
+    src_f   = ImageFont.truetype(FONT_REG,  18)
 
-    draw_text_shadow(draw, (PAD, 34), "THE LEDGER WIRE", logo_f, WHITE, shadow_color=(0,0,0), offset=2)
-    lb = draw.textbbox((0,0), "THE LEDGER WIRE", font=logo_f)
-    draw.rectangle([(PAD, 56), (PAD + lb[2] - lb[0], 58)], fill=GOLD)
+    # ── Gold left vertical bar ──
+    draw.rectangle([(0, 0), (10, H - FTR_H)], fill=GOLD)
 
+    # ── Top-left: THE LEDGER WIRE with gold underline ──
+    draw_text_shadow(draw, (40, 34), "THE LEDGER WIRE", mark_f, WHITE, offset=2)
+    mb = draw.textbbox((40, 34), "THE LEDGER WIRE", font=mark_f)
+    draw.rectangle([(40, mb[3] + 4), (40 + 130, mb[3] + 7)], fill=GOLD)
+
+    # ── Source badge top-right ──
     if source:
-        sb = draw.textbbox((0,0), source, font=badge_f)
-        sb_w = sb[2] - sb[0] + 20
-        sb_x = W - PAD - sb_w
-        draw.rectangle([(sb_x, 28), (sb_x + sb_w, 56)], outline=GOLD, width=1)
-        draw.text((sb_x + 10, 36), source, font=badge_f, fill=GOLD)
+        pad_x, pad_y = 14, 8
+        sb = draw.textbbox((0, 0), source, font=badge_f)
+        tw = sb[2] - sb[0]
+        th = sb[3] - sb[1]
+        box_w = tw + pad_x * 2
+        box_h = th + pad_y * 2 + 4
+        box_x = W - 40 - box_w
+        box_y = 28
+        draw.rectangle(
+            [(box_x, box_y), (box_x + box_w, box_y + box_h)],
+            outline=GOLD, width=2
+        )
+        draw.text((box_x + pad_x, box_y + pad_y - 2), source, font=badge_f, fill=GOLD)
 
-    company_display = company_name if company_name else ""
-    has_company = bool(company_display)
+    # ── Measure text blocks for bottom-up layout ──
+    # Auto-size H1 if it's too wide (e.g. long hooks like "13 DAYS")
+    h1_test = draw.textbbox((0, 0), h1, font=h1_f)
+    if (h1_test[2] - h1_test[0]) > MTW:
+        h1_f = ImageFont.truetype(FONT_BOLD, 120)
 
-    if not has_company:
-        co_f = h1_f
-        h1_f = ImageFont.truetype(FONT_BOLD, 60)
+    h1_lines  = wrap_text(draw, h1, h1_f, MTW)
+    h2_lines  = wrap_text(draw, h2, h2_f, MTW)
+    body_texts = support_lines[:2] if support_lines else []
 
-    co_lines  = wrap_text(draw, company_display, co_f, MTW) if has_company else []
-    h1_lines  = wrap_text(draw, h1,  h1_f,  MTW)
-    h2_lines  = wrap_text(draw, h2,  h2_f,  MTW)
-    hook_lines= wrap_text(draw, hook, hook_f, MTW) if hook else []
+    h1_lh = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
+    h2_lh = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
+    bd_lh = draw.textbbox((0, 0), "Ag", font=body_f)[3]
 
-    co_lh  = draw.textbbox((0,0), "Ag", font=co_f)[3]
-    h1_lh  = draw.textbbox((0,0), "Ag", font=h1_f)[3]
-    h2_lh  = draw.textbbox((0,0), "Ag", font=h2_f)[3]
-    hk_lh  = draw.textbbox((0,0), "Ag", font=hook_f)[3]
+    # ── Layout from bottom up ──
+    # Footer top edge
+    footer_top = H - FTR_H
 
-    tco  = co_lh  * min(len(co_lines), 2)  + 4
-    th1  = h1_lh  * min(len(h1_lines), 2)  + 4
-    th2  = h2_lh  * min(len(h2_lines), 2)  + 4
-    thk  = hk_lh  * min(len(hook_lines), 1)
+    # Body lines (grey, 2 lines max)
+    body_block_h = len(body_texts) * (bd_lh + 10) if body_texts else 0
+    body_y = footer_top - 28 - body_block_h
 
-    SAFE   = H - 72 - 20
-    src_y  = SAFE - 20
-    hook_y = src_y  - 16 - thk if hook_lines else src_y
-    h2_y   = hook_y - 12 - th2
-    rule_y = h2_y   - 18
-    h1_y   = rule_y - 14 - th1
-    co_y   = h1_y   - 8  - tco
+    # Gold rule
+    rule_y = body_y - 22
 
-    draw.rectangle([(PAD, rule_y), (PAD + 56, rule_y + 4)], fill=GOLD)
+    # H2 sub-headline (white)
+    h2_block_h = min(len(h2_lines), 2) * (h2_lh + 4)
+    h2_y = rule_y - 10 - h2_block_h
 
-    if co_lines:
-        y = co_y
-        for line in co_lines[:2]:
-            draw_text_shadow(draw, (PAD, y), line, co_f, GOLD,
-                             shadow_color=(0,0,0), offset=3)
-            y += co_lh + 4
+    # H1 stat hook (gold, hero)
+    h1_block_h = min(len(h1_lines), 2) * (h1_lh + 4)
+    h1_y = h2_y - 6 - h1_block_h
 
+    # ── Draw: H1 stat in GOLD (hero) ──
     y = h1_y
     for line in h1_lines[:2]:
-        draw_text_shadow(draw, (PAD, y), line, h1_f, WHITE,
-                         shadow_color=(0,0,0), offset=3)
+        draw_text_shadow(draw, (PAD, y), line, h1_f, GOLD,
+                         shadow_color=(0, 0, 0), offset=3)
         y += h1_lh + 4
 
+    # ── Draw: H2 sub in WHITE ──
     y = h2_y
     for line in h2_lines[:2]:
-        draw_text_shadow(draw, (PAD, y), line, h2_f,
-                         (210, 210, 210), shadow_color=(0,0,0), offset=2)
+        draw_text_shadow(draw, (PAD, y), line, h2_f, WHITE,
+                         shadow_color=(0, 0, 0), offset=3)
         y += h2_lh + 4
 
-    if hook_lines:
-        draw_text_shadow(draw, (PAD, hook_y), hook_lines[0], hook_f,
-                         (180, 180, 180), shadow_color=(0,0,0), offset=2)
+    # ── Draw: Gold rule ──
+    draw.rectangle([(PAD, rule_y), (PAD + 90, rule_y + 4)], fill=GOLD)
 
-    draw_text_shadow(draw, (PAD, src_y), "theledgerwire.com", src_f,
-                     WHITE, shadow_color=(0,0,0), offset=1)
+    # ── Draw: Body lines in GREY ──
+    y = body_y
+    for line in body_texts:
+        draw_text_shadow(draw, (PAD, y), line, body_f, BODY_GREY,
+                         shadow_color=(0, 0, 0), offset=2)
+        y += bd_lh + 10
 
+    # ── Gold footer bar ──
     draw_footer(draw)
     img.save("card.png", "PNG")
-    print("Card saved (photo mode)")
+    print("Card saved (photo mode — v18 template)")
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1,h2,support_lines=None,hook=""):
@@ -1458,7 +1490,8 @@ def generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context=""
     photo,img_url=get_photo(keyword,story_context,used_images)
     if photo:
         card_with_photo(apply_gradient(photo), h1, h2, hook,
-                        company_name=company, source=source)
+                        company_name=company, source=source,
+                        support_lines=support_lines)
     else:
         card_no_photo(h1,h2,support_lines,hook)
         img_url=None
