@@ -704,7 +704,7 @@ def fetch_flux_image(img_prompt):
     # ── PRIMARY: Grok Imagine ($0.02) ──
     try:
         r = requests.post(
-            "https://fal.run/fal-ai/grok-2-image",
+            "https://fal.run/xai/grok-imagine-image",  # $0.02/image
             headers={"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"},
             json={
                 "prompt": full_prompt,
