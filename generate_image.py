@@ -1,9 +1,9 @@
-# TLW v17
-# - Style variants: dark (60%) / vivid (20%) / warm (20%) — FORCE_STYLE env to override
-# - Carousel: Slide 1 (existing card) + Slide 2 (stat) + Slide 3 (context) for Tier 1 stories
-# - Carousel posted to LinkedIn only (2 per day max) — X stays single card
-# - Daily carousel counter stored in data/carousel_count.json
-# - PREVIEW_MODE: generates all 3 variants locally without posting
+# TLW v18
+# Changes from v17:
+# - Grok Imagine ($0.02/image) replaces Flux.1 Pro as primary (Flux fallback kept)
+# - Reads enriched STORY_BLOB from research_agent v2 if present — skips duplicate Claude calls
+# - Uses pre-written image_angle from blob directly — no second Flux-prompt call
+# - Everything else (carousel, Buffer posting, dedup, style variants, navy fallback) unchanged
 import os, re, time, random, requests, base64, json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -13,7 +13,7 @@ from datetime import datetime
 BUFFER_API_KEY    = os.environ.get("BUFFER_API_KEY", "")
 BUFFER_PROFILE_X  = os.environ.get("BUFFER_PROFILE_X", "")
 BUFFER_PROFILE_LI = os.environ.get("BUFFER_PROFILE_LI", "")
-BUFFER_PROFILE_IG = os.environ.get("BUFFER_PROFILE_IG", "")  # Instagram
+BUFFER_PROFILE_IG = os.environ.get("BUFFER_PROFILE_IG", "")
 GITHUB_TOKEN      = os.environ.get("GITHUB_TOKEN", "")
 ANTHROPIC_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
 UNSPLASH_KEY      = os.environ.get("UNSPLASH_KEY", "")
@@ -22,13 +22,12 @@ FAL_KEY           = os.environ.get("FAL_KEY", "")
 CARD_TYPE         = os.environ.get("CARD_TYPE", "news")
 WEEKLY_HEADLINES  = os.environ.get("WEEKLY_HEADLINES", "")
 IMAGE_KEYWORD       = os.environ.get("IMAGE_KEYWORD", "finance technology")
-CAROUSEL_MAX_DAILY  = 4          # max PDF carousel posts per day
+CAROUSEL_MAX_DAILY  = 4
 CAROUSEL_COUNT_PATH = "data/carousel_count.json"
 PREVIEW_MODE      = os.environ.get("PREVIEW_MODE", "0") == "1"
-FORCE_STYLE       = os.environ.get("FORCE_STYLE", "").lower().strip()  # set to "dark"/"vivid"/"warm" to override random
+FORCE_STYLE       = os.environ.get("FORCE_STYLE", "").lower().strip()
 
 # ── STYLE VARIANTS ────────────────────────────────────────────────
-# Weights control how often each style fires (must sum to 100)
 STYLE_VARIANTS = [
     {
         "name":        "dark",
@@ -36,7 +35,7 @@ STYLE_VARIANTS = [
         "flux_style":  "dark background, dramatic studio lighting, navy blue and gold color tones",
         "brightness":   0.62,
         "saturation":   0.85,
-        "gradient_opacity": 1.0,   # full navy overlay — current behaviour
+        "gradient_opacity": 1.0,
     },
     {
         "name":        "vivid",
@@ -44,7 +43,7 @@ STYLE_VARIANTS = [
         "flux_style":  "vibrant colorful background, bold electric blue and emerald green tones, high contrast, bright dramatic lighting, NO dark backgrounds, bright and colourful",
         "brightness":   0.88,
         "saturation":   1.35,
-        "gradient_opacity": 0.42,  # lighter overlay — photo colour shows through
+        "gradient_opacity": 0.42,
     },
     {
         "name":        "warm",
@@ -52,12 +51,11 @@ STYLE_VARIANTS = [
         "flux_style":  "warm rich tones, deep amber and teal color palette, bright cinematic lighting, premium editorial feel, well-lit, NOT dark",
         "brightness":   0.85,
         "saturation":   1.22,
-        "gradient_opacity": 0.42,  # middle ground — warm but not washed out
+        "gradient_opacity": 0.42,
     },
 ]
 
 def pick_style():
-    # FORCE_STYLE override — set env var to lock a specific style
     if FORCE_STYLE:
         for s in STYLE_VARIANTS:
             if s["name"] == FORCE_STYLE:
@@ -69,15 +67,12 @@ def pick_style():
     print(f"Style variant: {chosen['name']}")
     return chosen
 
-# Pick once per run so every function uses the same style
 ACTIVE_STYLE = pick_style()
 
-# ── BASE64 DECODE inputs from Make.com ────────────────────────────
+# ── BASE64 DECODE inputs ──────────────────────────────────────────
 def _decode(val):
-    """Decode base64 if encoded, otherwise return raw."""
     try:
         decoded = base64.b64decode(val).decode('utf-8')
-        # Sanity check — decoded should be readable text
         if decoded.isprintable() or '\n' in decoded:
             return decoded.strip()
     except Exception:
@@ -86,10 +81,19 @@ def _decode(val):
 
 STORY_TITLE   = _decode(os.environ.get("STORY_TITLE",   ""))
 STORY_SUMMARY = _decode(os.environ.get("STORY_SUMMARY", ""))
-
-# Also strip any remaining control characters
 STORY_TITLE   = re.sub(r'[\x00-\x1f\x7f]', ' ', STORY_TITLE).strip()
 STORY_SUMMARY = re.sub(r'[\x00-\x1f\x7f]', ' ', STORY_SUMMARY).strip()
+
+# NEW — load enriched story blob from research_agent v2 if present
+STORY_BLOB_RAW = os.environ.get("STORY_BLOB", "")
+TLW_STORY = None
+if STORY_BLOB_RAW:
+    try:
+        TLW_STORY = json.loads(base64.b64decode(STORY_BLOB_RAW).decode('utf-8'))
+        print(f"Loaded enriched story blob: {TLW_STORY.get('title','')[:50]}")
+    except Exception as e:
+        print(f"Could not parse STORY_BLOB: {e}")
+        TLW_STORY = None
 
 REPO       = "theledgerwire/tlw-content-engine"
 IMAGE_PATH = f"cards/card_{int(time.time())}.png"
@@ -158,13 +162,12 @@ COUNTRY_KEYWORDS = {
 # ── USED IMAGES TRACKING ──────────────────────────────────────────
 USED_IMAGES_PATH = "data/used_images.json"
 USED_IMAGES_URL  = f"https://raw.githubusercontent.com/{REPO}/main/{USED_IMAGES_PATH}?t={int(time.time())}"
-IMAGE_EXPIRY_SEC = 7 * 86400  # 7 days
+IMAGE_EXPIRY_SEC = 7 * 86400
 
 # ── STORY DEDUPLICATION ───────────────────────────────────────────
 USED_STORIES_PATH = "data/used_stories.json"
 
 def load_used_stories():
-    """Load set of already-processed story title hashes from GitHub."""
     try:
         headers = {"Authorization": f"Bearer {GITHUB_TOKEN}",
                    "Accept": "application/vnd.github.v3+json"}
@@ -181,12 +184,10 @@ def load_used_stories():
     return set()
 
 def save_used_story(title_hash):
-    """Append a story hash to used_stories.json on GitHub."""
     try:
         import json as _json, base64 as _b64
         headers = {"Authorization": f"Bearer {GITHUB_TOKEN}",
                    "Accept": "application/vnd.github.v3+json"}
-        # Get current file
         r = requests.get(
             f"https://api.github.com/repos/{REPO}/contents/{USED_STORIES_PATH}",
             headers=headers, timeout=10
@@ -198,7 +199,6 @@ def save_used_story(title_hash):
             existing = set(_json.loads(data).get("hashes", []))
             sha = r.json().get("sha")
         existing.add(title_hash)
-        # Keep last 200 hashes only
         hashes_list = list(existing)[-200:]
         content_str = _json.dumps({"hashes": hashes_list}, indent=2)
         encoded = _b64.b64encode(content_str.encode()).decode()
@@ -213,12 +213,10 @@ def save_used_story(title_hash):
         print(f"Could not save used story: {e}")
 
 def story_hash(title):
-    """Create a short hash from story title for dedup."""
     import hashlib
     return hashlib.md5(title.lower().strip()[:80].encode()).hexdigest()[:12]
 
 def story_already_used(title, used_stories):
-    """Check if this story title was already processed."""
     h = story_hash(title)
     return h in used_stories
 
@@ -253,6 +251,7 @@ def save_used_image(img_url, used_images):
         print(f"Could not save used image: {e}")
 
 _sname = ACTIVE_STYLE["name"]
+
 # ── CAROUSEL DAILY COUNTER ────────────────────────────────────────
 CAROUSEL_COUNT_URL = f"https://raw.githubusercontent.com/{REPO}/main/{CAROUSEL_COUNT_PATH}?t={int(time.time())}"
 
@@ -286,32 +285,10 @@ def save_carousel_count(count):
 def carousel_allowed():
     same_day, count = load_carousel_count()
     if not same_day:
-        return True   # new day — reset
+        return True
     return count < CAROUSEL_MAX_DAILY
 
-print(f"=== TLW v17 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE}")
-
-# ── PREVIEW MODE — generate all 3 style variants locally, no posting ─
-if PREVIEW_MODE:
-    import sys
-    test_title   = STORY_TITLE or "Fed holds rates as inflation fears mount"
-    test_summary = STORY_SUMMARY or "Federal Reserve kept interest rates unchanged, citing persistent inflation"
-    print("PREVIEW MODE — generating all 3 style variants...")
-    for variant in STYLE_VARIANTS:
-        vname = variant["name"]
-        print(f"\n--- Rendering style: {vname} ---")
-        flux_prompt = generate_flux_prompt(test_title, test_summary, style=variant)
-        photo, img_url = fetch_flux_image(flux_prompt) if FAL_KEY and flux_prompt else (None, None)
-        if photo:
-            gradient_photo = apply_gradient(photo, style=variant)
-            out_path = f"preview_{vname}.png"
-            gradient_photo.save(out_path, "PNG")
-            print(f"Saved: {out_path}")
-        else:
-            print(f"Flux failed for {vname} — check FAL_KEY")
-    print("\nPreview complete. Check preview_dark.png / preview_vivid.png / preview_warm.png")
-    sys.exit(0)
-print(f"Title: {STORY_TITLE[:60]}...")
+print(f"=== TLW v18 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
 
 # ── TWEET CHAR COUNT ──────────────────────────────────────────────
 def x_char_count(text):
@@ -320,13 +297,28 @@ def x_char_count(text):
 
 # ── STRIP URLS FROM TEXT ──────────────────────────────────────────
 def strip_urls(text):
-    """Remove all URLs and domain references from text."""
     text = re.sub(r'https?://\S+', '', text)
     text = re.sub(r'\S+\.com\S*', '', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-# ── CLAUDE: NEWS ──────────────────────────────────────────────────
+# ── BUILD LINKEDIN FROM BLOB ──────────────────────────────────────
+def _build_linkedin_from_blob(blob):
+    """Build a LinkedIn post from TLW-voice fields in the research blob."""
+    hook     = blob.get("stat_hook", "")
+    sub      = blob.get("sub_headline", "")
+    tagline  = blob.get("tagline", "")
+    line1    = blob.get("body_line_1", "")
+    line2    = blob.get("body_line_2", "")
+    title    = blob.get("title", "")
+    summary  = blob.get("summary", "")
+
+    opening = f"{hook}. {sub}" if hook and sub else title
+    body    = f"{summary}\n\n→ {line1}\n→ {line2}"
+    close   = f"\n\n{tagline}\n\nWhat's your read?"
+    return strip_urls(f"{opening}\n\n{body}{close}")
+
+# ── CLAUDE: NEWS (legacy fallback — only used if no blob) ─────────
 def call_claude_news(title, summary):
     if not ANTHROPIC_KEY:
         return None
@@ -347,7 +339,7 @@ These topics are core to TLW's audience. Never skip them regardless of other con
 
 Before writing, decide the angle:
 - CAREER IMPACT: "Your job in X just changed." — use when story affects jobs/roles/skills
-- MONEY IMPACT: "Your portfolio just got a new variable." — use for markets/valuations/earnings  
+- MONEY IMPACT: "Your portfolio just got a new variable." — use for markets/valuations/earnings
 - POWER SHIFT: "The company that X is now Y." — use for competition/disruption/bans
 
 Reply in this EXACT format (output ONLY the values, no labels or instructions):
@@ -432,7 +424,6 @@ FACT3: [third key fact, max 12 words]"""
         if current_key:
             result[current_key] = "\n".join(current_val).strip()
 
-        # Trim tweet if over 280
         tweet = result.get("tweet", title)
         if x_char_count(tweet) > 280:
             parts = tweet.rsplit("#", 1)
@@ -442,17 +433,14 @@ FACT3: [third key fact, max 12 words]"""
                 base = base[:base.rfind(" ")]
             result["tweet"] = f"{base}... {tags}".strip()
 
-        # Hard guard
         if result.get("h1") in ["Breaking Now", "", None]:
             print("H1 default — SKIP")
             return "SKIP"
 
-        # Strip asterisks
         for key in ["h1","h2","hook"]:
             if key in result:
                 result[key] = result[key].replace("**","").replace("*","").strip()
 
-        # HARD strip any URLs from LinkedIn text
         if "linkedin" in result:
             result["linkedin"] = strip_urls(result["linkedin"])
 
@@ -575,7 +563,6 @@ def fetch_pexels(keyword, used_images):
         photos = r.json().get("photos", [])
         if not photos:
             return None, None
-        # Shuffle and skip used images
         random.shuffle(photos)
         for p in photos:
             img_url = p["src"]["large"]
@@ -630,11 +617,22 @@ def get_country_keywords(keyword, story_context=""):
             return replacements
     return []
 
-# ── FLUX.1 AI IMAGE GENERATION ────────────────────────────────────
+# ── AI IMAGE GENERATION (Grok Imagine primary, Flux fallback) ─────
 def generate_flux_prompt(title, summary, style=None):
-    """Claude writes a story-specific Flux.1 image prompt."""
+    """
+    Generate image prompt. If research_agent v2 pre-wrote an image_angle,
+    use it directly. Otherwise fall back to Claude-generated prompt.
+    """
     if style is None:
         style = ACTIVE_STYLE
+
+    # PRIMARY PATH — use blob's image_angle directly
+    if TLW_STORY and TLW_STORY.get("image_angle"):
+        angle = TLW_STORY["image_angle"]
+        print(f"Using pre-written image_angle: {angle[:80]}...")
+        return f"{angle}, {style['flux_style']}"
+
+    # FALLBACK PATH — generate via Claude (legacy behavior)
     if not ANTHROPIC_KEY:
         return None
     try:
@@ -643,7 +641,7 @@ def generate_flux_prompt(title, summary, style=None):
 Story: {title}
 Summary: {summary}
 
-Generate a Flux.1 image prompt for this financial news card. 
+Generate an image prompt for this financial news card.
 
 RULES:
 1. Match the story LITERALLY — what physical object, building, product, or scene best represents it?
@@ -655,7 +653,7 @@ RULES:
 
 STORY-TO-VISUAL MAPPING:
 - IPO/stock listing → trading floor screens with green numbers, wide angle, dramatic lighting
-- AI company → specific product shot (not generic circuit boards) e.g. "Anthropic Claude interface on MacBook screen"
+- AI company → specific product shot e.g. "Anthropic Claude interface on MacBook screen"
 - Crypto/Bitcoin → gold coin on dark marble, macro lens, shallow depth of field
 - Data centre/cloud → rows of server racks with blue LED lights, wide angle perspective
 - Job cuts/layoffs → empty open-plan office, chairs pushed in, late evening light
@@ -680,19 +678,55 @@ Reply ONLY with the image prompt. No explanation."""
         )
         if r.status_code == 200:
             img_prompt = r.json()["content"][0]["text"].strip().strip('"')
-            print(f"Flux prompt: {img_prompt}")
+            print(f"Generated prompt: {img_prompt}")
             return img_prompt
     except Exception as e:
-        print(f"Flux prompt error: {e}")
+        print(f"Prompt generation error: {e}")
     return None
 
 def fetch_flux_image(img_prompt):
-    """Generate image via Flux.1 Pro on fal.ai."""
+    """
+    Generate image via Grok Imagine on fal.ai ($0.02/image).
+    Automatic fallback to Flux.1 Pro ($0.05) if Grok fails.
+    Function name kept as fetch_flux_image for backwards compatibility.
+    """
     if not FAL_KEY or not img_prompt:
         return None, None
+
+    # Grok Imagine handles shorter, more direct prompts better than Flux.
+    full_prompt = (
+        f"{img_prompt}, cinematic editorial photograph, "
+        "deep navy and gold color palette, photorealistic, "
+        "financial magazine style, dramatic lighting, "
+        "no text, no logos, no watermarks"
+    )
+
+    # ── PRIMARY: Grok Imagine ($0.02) ──
     try:
-        full_prompt = img_prompt + ", photorealistic news photography, 8K, sharp focus, no text, no watermarks, no logos, professional studio lighting"
         r = requests.post(
+            "https://fal.run/fal-ai/grok-2-image",
+            headers={"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"},
+            json={
+                "prompt": full_prompt,
+                "image_size": "square_hd",
+                "num_images": 1,
+            },
+            timeout=60
+        )
+        print(f"Grok Imagine: {r.status_code}")
+        if r.status_code == 200:
+            img_url  = r.json()["images"][0]["url"]
+            img_data = requests.get(img_url, timeout=30).content
+            print(f"Grok image: {img_url[:60]}...")
+            return process_photo(img_data), img_url
+        else:
+            print(f"Grok error: {r.text[:200]} — falling back to Flux.1 Pro")
+    except Exception as e:
+        print(f"Grok exception: {e} — falling back to Flux.1 Pro")
+
+    # ── FALLBACK: Flux.1 Pro ($0.05) ──
+    try:
+        r2 = requests.post(
             "https://fal.run/fal-ai/flux-pro/v1.1",
             headers={"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"},
             json={
@@ -705,14 +739,14 @@ def fetch_flux_image(img_prompt):
             },
             timeout=60
         )
-        print(f"Flux.1: {r.status_code}")
-        if r.status_code == 200:
-            img_url  = r.json()["images"][0]["url"]
+        print(f"Flux.1 (fallback): {r2.status_code}")
+        if r2.status_code == 200:
+            img_url  = r2.json()["images"][0]["url"]
             img_data = requests.get(img_url, timeout=30).content
             print(f"Flux image: {img_url[:60]}...")
             return process_photo(img_data), img_url
         else:
-            print(f"Flux error: {r.text[:200]}")
+            print(f"Flux error: {r2.text[:200]}")
     except Exception as e:
         print(f"Flux exception: {e}")
     return None, None
@@ -721,9 +755,9 @@ def get_photo(keyword, story_context="", used_images=None):
     if used_images is None:
         used_images = {}
 
-    # Tier 1 — Flux.1 AI generated (story-specific, zero copyright)
+    # Tier 1 — AI generated (Grok Imagine → Flux fallback)
     if FAL_KEY:
-        print("--- Trying Flux.1 AI ---")
+        print("--- Trying AI image generation ---")
         flux_prompt = generate_flux_prompt(
             story_context.split(" ", 10)[0:10] and story_context or keyword,
             story_context,
@@ -731,9 +765,9 @@ def get_photo(keyword, story_context="", used_images=None):
         )
         photo, img_url = fetch_flux_image(flux_prompt)
         if photo:
-            print("Flux.1 success")
+            print("AI image success")
             return photo, img_url
-        print("Flux.1 failed — trying Pexels")
+        print("AI image failed — trying Pexels")
 
     country_kws     = get_country_keywords(keyword, story_context)
     keywords_to_try = [keyword] + country_kws + PHOTO_FALLBACKS
@@ -763,25 +797,22 @@ def apply_gradient(img, start=0.15, style=None):
         style = ACTIVE_STYLE
     op        = style["gradient_opacity"]
     sname     = style["name"]
-    # Dark style: deep navy overlay. Vivid/warm: near-black but much lighter
     if sname == "dark":
         overlay_rgb = (10, 22, 40)
         top_rgb     = (10, 22, 40)
     elif sname == "vivid":
-        overlay_rgb = (0, 10, 30)   # near-black, not navy
+        overlay_rgb = (0, 10, 30)
         top_rgb     = (0, 10, 30)
-    else:  # warm
-        overlay_rgb = (15, 10, 5)   # very dark warm tint
+    else:
+        overlay_rgb = (15, 10, 5)
         top_rgb     = (15, 10, 5)
     grad = Image.new("RGBA",(W,H),(0,0,0,0))
     gd   = ImageDraw.Draw(grad)
-    # Bottom gradient — stronger and starts earlier
     for y in range(int(H*start),H):
         t = float(y-H*start)/float(H*(1-start))
         t = max(0.0,min(1.0,t))
         a = int(255*t**0.65 * op)
         gd.line([(0,y),(W,y)],fill=(*overlay_rgb,a))
-    # Top brand bar overlay — stronger so brand text is always readable
     for y in range(0,120):
         t = 1-(y/120)
         a = int(180*t**0.5 * op)
@@ -816,12 +847,8 @@ def draw_footer(draw):
     draw.text((PAD,fy),"THE LEDGER WIRE",font=url_f,fill=NAVY)
     draw.text((W-PAD-uw,fy),"theledgerwire.com",font=tag_f,fill=NAVY)
 
-# ── TEXT SHADOW HELPER ───────────────────────────────────────────
 def draw_text_shadow(draw, pos, text, font, fill, shadow_color=(0,0,0), offset=3, blur_passes=2):
-    """Draw text with a subtle single-offset drop shadow for legibility."""
     x, y = pos
-    # Single clean shadow — just draw offset text in dark, then real text on top
-    shadow = (0, 0, 0, 160)
     draw.text((x + 2, y + 2), text, font=font, fill=(0, 0, 0))
     draw.text((x, y), text, font=font, fill=fill)
 
@@ -840,7 +867,6 @@ KNOWN_COMPANIES = [
     "Federal Reserve","Fed","SEC","FTC","OPEC","NATO","EU",
 ]
 
-# Countries and generic words that should NEVER be used as company hero
 NOT_COMPANIES = {
     "vietnam","china","india","japan","korea","russia","ukraine","iran","israel",
     "france","germany","spain","italy","europe","asia","africa","america",
@@ -850,23 +876,22 @@ NOT_COMPANIES = {
 }
 
 def extract_company(h2, story_title=""):
-    """Extract the dominant company name from H2 or story title."""
     import re as _re
     text = f"{h2} {story_title}"
-    # Check known companies first (longest match wins)
     for co in sorted(KNOWN_COMPANIES, key=len, reverse=True):
         if co.lower() in text.lower():
             return co.upper()
-    # Fallback: grab first capitalised word — but filter out countries/generic words
     m = _re.match(r"([A-Z][A-Za-z&]+)", h2.strip())
     if m:
         word = m.group(1).rstrip(".,")
         if len(word) >= 3 and word.lower() not in NOT_COMPANIES:
             return word.upper()
-    return None  # Return None — card will show H1 stat as hero instead
+    return None
 
 def get_source_label(story_title=""):
-    """Infer source from story context."""
+    # Use source_tag from blob if present
+    if TLW_STORY and TLW_STORY.get("source_tag"):
+        return TLW_STORY["source_tag"]
     t = story_title.lower()
     if "bloomberg" in t: return "Bloomberg"
     if "reuters" in t:   return "Reuters"
@@ -876,30 +901,26 @@ def get_source_label(story_title=""):
     if "coindesk" in t:  return "CoinDesk"
     if "marketwatch" in t: return "MarketWatch"
     if "ai news" in t or "artificialintelligence" in t: return "AI News"
-    return ""   # No badge if source unknown — cleaner than "TLW Research"
+    return ""
 
 # ── CARD: PHOTO ───────────────────────────────────────────────────
 def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
-    """Concept B: Company name as hero element, stat below, source badge top-right."""
     draw = ImageDraw.Draw(img)
     PAD  = 56
     MTW  = W - PAD - 40
 
-    # ── Fonts ──
-    co_f    = ImageFont.truetype(FONT_BOLD, 100)  # company name — BIG
-    h1_f    = ImageFont.truetype(FONT_BOLD, 76)   # stat
-    h2_f    = ImageFont.truetype(FONT_BOLD, 38)   # description
-    hook_f  = ImageFont.truetype(FONT_BOLD, 36)   # hook
+    co_f    = ImageFont.truetype(FONT_BOLD, 100)
+    h1_f    = ImageFont.truetype(FONT_BOLD, 76)
+    h2_f    = ImageFont.truetype(FONT_BOLD, 38)
+    hook_f  = ImageFont.truetype(FONT_BOLD, 36)
     src_f   = ImageFont.truetype(FONT_REG,  18)
     badge_f = ImageFont.truetype(FONT_BOLD, 16)
     logo_f  = ImageFont.truetype(FONT_BOLD, 18)
 
-    # ── Top brand bar ──
     draw_text_shadow(draw, (PAD, 34), "THE LEDGER WIRE", logo_f, WHITE, shadow_color=(0,0,0), offset=2)
     lb = draw.textbbox((0,0), "THE LEDGER WIRE", font=logo_f)
     draw.rectangle([(PAD, 56), (PAD + lb[2] - lb[0], 58)], fill=GOLD)
 
-    # ── Source badge top-right — only if we have a real source ──
     if source:
         sb = draw.textbbox((0,0), source, font=badge_f)
         sb_w = sb[2] - sb[0] + 20
@@ -907,14 +928,12 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
         draw.rectangle([(sb_x, 28), (sb_x + sb_w, 56)], outline=GOLD, width=1)
         draw.text((sb_x + 10, 36), source, font=badge_f, fill=GOLD)
 
-    # ── Measure all text blocks ──
     company_display = company_name if company_name else ""
     has_company = bool(company_display)
 
-    # If no company found, bump H1 to 100pt as the hero element
     if not has_company:
-        co_f = h1_f   # reuse h1 slot visually
-        h1_f = ImageFont.truetype(FONT_BOLD, 60)  # shrink h1 since it's secondary
+        co_f = h1_f
+        h1_f = ImageFont.truetype(FONT_BOLD, 60)
 
     co_lines  = wrap_text(draw, company_display, co_f, MTW) if has_company else []
     h1_lines  = wrap_text(draw, h1,  h1_f,  MTW)
@@ -931,7 +950,6 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
     th2  = h2_lh  * min(len(h2_lines), 2)  + 4
     thk  = hk_lh  * min(len(hook_lines), 1)
 
-    # ── Layout from bottom up ──
     SAFE   = H - 72 - 20
     src_y  = SAFE - 20
     hook_y = src_y  - 16 - thk if hook_lines else src_y
@@ -940,10 +958,8 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
     h1_y   = rule_y - 14 - th1
     co_y   = h1_y   - 8  - tco
 
-    # Gold accent line between company and stat
     draw.rectangle([(PAD, rule_y), (PAD + 56, rule_y + 4)], fill=GOLD)
 
-    # ── Company name — GOLD, massive ──
     if co_lines:
         y = co_y
         for line in co_lines[:2]:
@@ -951,33 +967,28 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source=""):
                              shadow_color=(0,0,0), offset=3)
             y += co_lh + 4
 
-    # ── H1 stat — WHITE, bold ──
     y = h1_y
     for line in h1_lines[:2]:
         draw_text_shadow(draw, (PAD, y), line, h1_f, WHITE,
                          shadow_color=(0,0,0), offset=3)
         y += h1_lh + 4
 
-    # ── H2 description — lighter white ──
     y = h2_y
     for line in h2_lines[:2]:
         draw_text_shadow(draw, (PAD, y), line, h2_f,
                          (210, 210, 210), shadow_color=(0,0,0), offset=2)
         y += h2_lh + 4
 
-    # ── Hook — white italic feel ──
     if hook_lines:
         draw_text_shadow(draw, (PAD, hook_y), hook_lines[0], hook_f,
                          (180, 180, 180), shadow_color=(0,0,0), offset=2)
 
-    # ── Footer URL ──
     draw_text_shadow(draw, (PAD, src_y), "theledgerwire.com", src_f,
                      WHITE, shadow_color=(0,0,0), offset=1)
 
     draw_footer(draw)
     img.save("card.png", "PNG")
     print("Card saved (photo mode)")
-
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1,h2,support_lines=None,hook=""):
@@ -1097,9 +1108,8 @@ def card_tweet_screenshot(tweet_text,label="THIS WEEK"):
     img.save("card.png","PNG")
     print("Card saved (tweet screenshot)")
 
-# ── CAROUSEL: STAT CARD (Slide 2) — Data Viz Chart ──────────────
+# ── CAROUSEL: STAT CARD (Slide 2) ─────────────────────────────────
 def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value):
-    """Bold data visualisation chart card for carousel slide 2 — Var 2: White/Blue/Gold."""
     UA_BLUE = (58, 101, 185)
     NAVY2   = (10, 22, 40)
     GREY_T  = (160, 160, 160)
@@ -1108,17 +1118,13 @@ def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, c
     draw = ImageDraw.Draw(img)
     PAD  = 72
 
-    # ── Double stripe header: UA_BLUE on top, GOLD below ──
     draw.rectangle([(0, 0),  (W, 18)], fill=UA_BLUE)
     draw.rectangle([(0, 18), (W, 32)], fill=GOLD)
-    # ── Bottom footer bar ──
     draw.rectangle([(0, H - 12), (W, H)], fill=UA_BLUE)
 
-    # ── Brand label — UA_BLUE, fully readable on white ──
     lf = ImageFont.truetype(FONT_BOLD, 22)
     draw.text((PAD, 50), "THE LEDGER WIRE", font=lf, fill=UA_BLUE)
 
-    # ── Big bold ALL-CAPS title (stat_label as headline) ──
     tf  = ImageFont.truetype(FONT_BOLD, 68)
     tlh = draw.textbbox((0, 0), "Ag", font=tf)[3]
     title_lines = wrap_text(draw, stat_label.upper(), tf, W - PAD * 2)
@@ -1127,14 +1133,11 @@ def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, c
         draw.text((PAD, y), line, font=tf, fill=NAVY2)
         y += tlh + 4
 
-    # ── Source label ──
     sf2 = ImageFont.truetype(FONT_REG, 22)
     draw.text((PAD, y + 8), f"SOURCE: THE LEDGER WIRE  ·  {stat_context[:40].upper()}", font=sf2, fill=GREY_T)
     y += 52
 
-    # ── Parse values for chart bars ──
     def parse_val(v):
-        """Extract numeric from strings like $30B, 74%, 25,000"""
         import re
         v = str(v).replace(',','').replace('$','').replace('%','')
         m = re.search(r'[\d.]+([BMK])?', v, re.I)
@@ -1150,7 +1153,6 @@ def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, c
     val_b = parse_val(compare_b_value)
     max_v = max(val_a, val_b) * 1.15
 
-    # ── Chart area ──
     chart_left  = PAD
     chart_right = W - PAD
     chart_w     = chart_right - chart_left
@@ -1158,16 +1160,13 @@ def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, c
     chart_bot   = H - 160
     chart_h     = chart_bot - chart_top
 
-    # ── Horizontal grid lines ──
     gf = ImageFont.truetype(FONT_REG, 20)
     for pct in [0, 25, 50, 75, 100]:
         gy = chart_bot - int(chart_h * pct / 100)
         draw.line([(chart_left, gy), (chart_right, gy)], fill=(225, 225, 225), width=1)
-        # y-axis label
         lbl_v = f"{int(max_v * pct / 100)}"
         draw.text((chart_left - 8, gy - 12), lbl_v, font=gf, fill=(160, 160, 160), anchor="ra")
 
-    # ── Bar dimensions ──
     n_bars   = 2
     grp_w    = chart_w // n_bars
     bar_w    = int(grp_w * 0.52)
@@ -1185,49 +1184,40 @@ def card_carousel_stat(stat_number, stat_label, stat_context, compare_a_label, c
         bar_h2 = int(chart_h * min(val / max_v, 1.0))
         by    = chart_bot - bar_h2
 
-        # Bar
         draw.rectangle([(bx, by), (bx + bar_w, chart_bot)], fill=col)
 
-        # Value label ON TOP of bar
         vb = draw.textbbox((0, 0), raw, font=bvf)
         vw = vb[2] - vb[0]
         draw.text((bx + (bar_w - vw) // 2, by - 40), raw, font=bvf, fill=val_colors[i])
 
-        # X-axis label below bar
         lb2 = draw.textbbox((0, 0), lbl, font=blf)
         lw  = lb2[2] - lb2[0]
         draw.text((bx + (bar_w - lw) // 2, chart_bot + 14), lbl, font=blf, fill=NAVY2)
 
-    # ── Stat number callout (bottom left) ──
     snf  = ImageFont.truetype(FONT_BOLD, 52)
     snlf = ImageFont.truetype(FONT_REG, 22)
     draw.text((PAD, H - 130), stat_number, font=snf, fill=UA_BLUE)
     snb  = draw.textbbox((0, 0), stat_number, font=snf)
     draw.text((PAD + snb[2] + 12, H - 115), "KEY FIGURE", font=snlf, fill=(160, 160, 160))
 
-    # ── Footer ──
     ff = ImageFont.truetype(FONT_REG, 22)
     draw.text((W - PAD, H - 48), "theledgerwire.com", font=ff, fill=UA_BLUE, anchor="ra")
 
     img.save("carousel_2.png", "PNG")
     print("Carousel slide 2 saved (chart mode)")
 
-# ── CAROUSEL: CONTEXT CARD (Slide 3) ─────────────────────────────
+# ── CAROUSEL: CONTEXT CARD (Slide 3) ──────────────────────────────
 def card_carousel_context(fact1, fact2, fact3, h1, h2):
-    """Light white context card for carousel slide 3."""
-    img  = Image.new("RGB", (W, H), (255, 255, 255))   # pure white
+    img  = Image.new("RGB", (W, H), (255, 255, 255))
     draw = ImageDraw.Draw(img)
     PAD  = 80
 
-    # Left gold accent bar
     draw.rectangle([(0, 0), (10, H)], fill=GOLD)
 
-    # Top labels
     lf = ImageFont.truetype(FONT_BOLD, 24)
     draw.text((PAD, 64),  "THE LEDGER WIRE", font=lf, fill=GOLD)
     draw.text((PAD, 100), "WHY IT MATTERS",  font=lf, fill=(160, 160, 160))
 
-    # Story reference — navy bold
     h2f  = ImageFont.truetype(FONT_BOLD, 52)
     h2lh = draw.textbbox((0, 0), "Ag", font=h2f)[3]
     ref  = f"{h1} — {h2}"
@@ -1240,7 +1230,6 @@ def card_carousel_context(fact1, fact2, fact3, h1, h2):
     draw.rectangle([(PAD, y), (PAD + 140, y + 5)], fill=GOLD)
     y += 44
 
-    # Three bullet facts — larger text, more breathing room
     bf       = ImageFont.truetype(FONT_REG,  38)
     bfb      = ImageFont.truetype(FONT_BOLD, 38)
     blh      = draw.textbbox((0, 0), "Ag", font=bf)[3]
@@ -1256,30 +1245,26 @@ def card_carousel_context(fact1, fact2, fact3, h1, h2):
         for fl in fact_lines[:2]:
             draw.text((PAD + 36, y), fl, font=bf, fill=(45, 45, 45))
             y += blh + 8
-        y += 52   # generous gap between facts
+        y += 52
 
-    # Footer
     ff = ImageFont.truetype(FONT_REG, 24)
     draw.text((PAD, H - 60), "theledgerwire.com", font=ff, fill=GOLD)
     draw.rectangle([(0, H - 10), (W, H)], fill=GOLD)
     img.save("carousel_3.png", "PNG")
     print("Carousel slide 3 saved")
 
-# ── CAROUSEL: CTA CARD (Slide 4 — Instagram only) ─────────────────
+# ── CAROUSEL: CTA CARD ────────────────────────────────────────────
 def card_carousel_cta():
-    """Dark CTA card for carousel slide 4."""
     img  = Image.new("RGB", (W, H), NAVY)
     draw = ImageDraw.Draw(img)
     cx   = W // 2
 
-    # Circle logo
     r = 110
     draw.ellipse([(cx - r, 340), (cx + r, 340 + r * 2)], fill=GOLD)
     lf = ImageFont.truetype(FONT_BOLD, 56)
     lb = draw.textbbox((0, 0), "TLW", font=lf)
     draw.text((cx - (lb[2] - lb[0]) // 2, 340 + r - (lb[3] - lb[1]) // 2), "TLW", font=lf, fill=NAVY)
 
-    # Tagline
     tf  = ImageFont.truetype(FONT_BOLD, 52)
     tag = "AI & Finance,"
     tb  = draw.textbbox((0, 0), tag, font=tf)
@@ -1288,12 +1273,10 @@ def card_carousel_cta():
     tb2  = draw.textbbox((0, 0), tag2, font=tf)
     draw.text((cx - (tb2[2] - tb2[0]) // 2, 686), tag2, font=tf, fill=GOLD)
 
-    # Handle
     hf  = ImageFont.truetype(FONT_REG, 34)
     hb  = draw.textbbox((0, 0), "@LedgerWire", font=hf)
     draw.text((cx - (hb[2] - hb[0]) // 2, 780), "@LedgerWire", font=hf, fill=(150, 150, 180))
 
-    # CTA pill
     pill_w, pill_h, pill_r = 420, 72, 36
     pill_x = cx - pill_w // 2
     pill_y = 870
@@ -1305,14 +1288,12 @@ def card_carousel_cta():
     img.save("carousel_4.png", "PNG")
     print("Carousel slide 4 saved (CTA)")
 
-
 # ── PDF CAROUSEL GENERATOR ────────────────────────────────────────
 def generate_carousel_pdf(output_path, h1, h2, hook,
                            stat_number, stat_label, stat_context,
                            compare_a_label, compare_a_value,
                            compare_b_label, compare_b_value,
                            fact1, fact2, fact3, takeaway):
-    """Generate a 5-slide LinkedIn PDF carousel."""
     try:
         from reportlab.pdfgen import canvas as rl_canvas
         from reportlab.lib.colors import HexColor, white
@@ -1370,7 +1351,7 @@ def generate_carousel_pdf(output_path, h1, h2, hook,
 
     c = rl_canvas.Canvas(output_path, pagesize=(_W, _H))
 
-    # ── SLIDE 1: Cover ──
+    # SLIDE 1: Cover
     c.setFillColor(_NAVY); c.rect(0, 0, _W, _H, fill=1, stroke=0)
     c.setFillColor(_GOLD); c.rect(0, 56, 8, _H-56, fill=1, stroke=0)
     c.setFillColor(_GOLD); c.setFont('TLW-Bold', 20); c.drawString(52, _H-52, "THE LEDGER WIRE")
@@ -1391,7 +1372,7 @@ def generate_carousel_pdf(output_path, h1, h2, hook,
     c.drawRightString(_W-40, 72, "Swipe for the data →")
     _footer(c, 0); c.showPage()
 
-    # ── SLIDE 2: Chart ──
+    # SLIDE 2: Chart
     c.setFillColor(_WHITE); c.rect(0, 0, _W, _H, fill=1, stroke=0)
     c.setFillColor(_UABLUE); c.rect(0, _H-18, _W, 18, fill=1, stroke=0)
     c.setFillColor(_GOLD);   c.rect(0, _H-32, _W, 14, fill=1, stroke=0)
@@ -1433,7 +1414,7 @@ def generate_carousel_pdf(output_path, h1, h2, hook,
     c.setFillColor(_WHITE); c.setFont('TLW-Reg',15); c.drawRightString(_W-40,18,"theledgerwire.com")
     _footer(c, 1); c.showPage()
 
-    # ── SLIDE 3: Context ──
+    # SLIDE 3: Context
     c.setFillColor(_WHITE); c.rect(0, 0, _W, _H, fill=1, stroke=0)
     c.setFillColor(_GOLD); c.rect(0, 56, 10, _H-56, fill=1, stroke=0)
     c.setFillColor(_GOLD); c.setFont('TLW-Bold',20); c.drawString(52,_H-52,"THE LEDGER WIRE")
@@ -1450,7 +1431,6 @@ def generate_carousel_pdf(output_path, h1, h2, hook,
         c.setFillColor(_DGREY)
         for fl in _wrap(fact,40)[:2]: c.drawString(76,y,fl); y-=34
         y-=42
-    # ── TLW Takeaway strip embedded at bottom of slide 3 ──
     if y > 150:
         c.setFillColor(_NAVY)
         c.rect(40, 68, _W-80, 74, fill=1, stroke=0)
@@ -1500,7 +1480,6 @@ def push_to_github(image_path,token,repo,file_path):
 
 # ── BUFFER ────────────────────────────────────────────────────────
 def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform="", retries=2):
-    """Post a multi-image carousel to Buffer (LinkedIn / Instagram)."""
     print(f"Posting carousel to Buffer {platform} ({len(image_urls)} slides)...")
     time.sleep(3)
     def esc(s):
@@ -1545,7 +1524,6 @@ def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform
     return False
 
 def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
-    """Post a PDF document carousel to LinkedIn via Buffer."""
     print(f"Posting LinkedIn PDF document...")
     time.sleep(3)
     def esc(s):
@@ -1590,7 +1568,6 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
 
 
 def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=2):
-    """Post to Instagram via Buffer GraphQL."""
     print(f"Posting to Buffer Instagram...")
     time.sleep(3)
     def esc(s):
@@ -1706,7 +1683,7 @@ if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
             if BUFFER_PROFILE_IG:
                 time.sleep(3)
-                ok_ig=post_to_buffer_instagram(ig_caption if 'ig_caption' in dir() else linkedin_text,RAW_URL,BUFFER_PROFILE_IG,BUFFER_API_KEY)
+                ok_ig=post_to_buffer_instagram(linkedin_text,RAW_URL,BUFFER_PROFILE_IG,BUFFER_API_KEY)
                 print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
     exit(0)
 
@@ -1714,15 +1691,45 @@ if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
 if not STORY_TITLE:
     print("No story title — exiting"); exit(0)
 
-# ── Check if story already processed ──
+# Check if story already processed
 used_stories = load_used_stories()
 if story_already_used(STORY_TITLE, used_stories):
     print(f"DUPLICATE: Story already processed — skipping: {STORY_TITLE[:60]}")
     exit(0)
 
-claude_result=call_claude_news(STORY_TITLE,STORY_SUMMARY)
-if claude_result=="SKIP" or claude_result is None:
-    print("Story skipped — exiting"); exit(0)
+# ── Use enriched blob if present, otherwise fall back to call_claude_news ──
+if TLW_STORY:
+    print("Using enriched TLW story blob (skipping call_claude_news)")
+    claude_result = {
+        "tier":     str(TLW_STORY.get("tier", 1)),
+        "tweet":    f"{TLW_STORY.get('stat_hook','')} — {TLW_STORY.get('sub_headline','')} {TLW_STORY.get('tagline','')}  theledgerwire.com  #AI #Finance".strip(),
+        "linkedin": _build_linkedin_from_blob(TLW_STORY),
+        "h1":       TLW_STORY.get("stat_hook",   STORY_TITLE[:20]),
+        "h2":       TLW_STORY.get("sub_headline", "Read Full Story"),
+        "hook":     TLW_STORY.get("tagline",      ""),
+        "lines":    f"{TLW_STORY.get('body_line_1','')}|{TLW_STORY.get('body_line_2','')}",
+        "keyword":  TLW_STORY.get("keyword_fallback", "finance technology"),
+        "stat_number":     TLW_STORY.get("stat_hook",   ""),
+        "stat_label":      TLW_STORY.get("sub_headline", ""),
+        "stat_context":    TLW_STORY.get("body_line_1",  ""),
+        "compare_a_label": "Before",
+        "compare_a_value": "",
+        "compare_b_label": "Now",
+        "compare_b_value": TLW_STORY.get("stat_hook", ""),
+        "fact1":           TLW_STORY.get("body_line_1", ""),
+        "fact2":           TLW_STORY.get("body_line_2", ""),
+        "fact3":           TLW_STORY.get("tagline",     ""),
+    }
+    # Enforce 280-char X limit
+    if x_char_count(claude_result["tweet"]) > 280:
+        t = claude_result["tweet"]
+        while x_char_count(t) > 278 and len(t) > 40:
+            t = t.rsplit(" ", 1)[0]
+        claude_result["tweet"] = t.strip()
+else:
+    claude_result = call_claude_news(STORY_TITLE, STORY_SUMMARY)
+    if claude_result == "SKIP" or claude_result is None:
+        print("Story skipped — exiting"); exit(0)
 
 tweet_text    =claude_result.get("tweet",    STORY_TITLE)
 linkedin_text =claude_result.get("linkedin", STORY_TITLE)
@@ -1731,10 +1738,9 @@ headline2     =claude_result.get("h2",       "Read Full Story")
 hook_text     =claude_result.get("hook",     "")
 lines_raw     =claude_result.get("lines",    "")
 img_keyword   =claude_result.get("keyword",  IMAGE_KEYWORD)
-story_tier    =claude_result.get("tier",     "1").strip()
+story_tier    =str(claude_result.get("tier",     "1")).strip()
 support_lines =[l.strip() for l in lines_raw.split("|") if l.strip()][:3]
 
-# Carousel fields — always populated by Claude for Tier 1
 stat_number     = claude_result.get("stat_number",     headline1)
 stat_label      = claude_result.get("stat_label",      headline2)
 stat_context    = claude_result.get("stat_context",    "")
@@ -1746,27 +1752,23 @@ fact1           = claude_result.get("fact1",            "")
 fact2           = claude_result.get("fact2",            "")
 fact3           = claude_result.get("fact3",            "")
 
-# Stat number guard — only carousel if stat contains a real number/symbol
 def has_real_stat(val):
-    """Returns True if stat_number contains $, %, or a digit — i.e. is a real data point."""
     return bool(re.search(r'[$%\d]', val)) if val else False
 
 stat_is_real = has_real_stat(stat_number)
 
-# Carousel fires automatically for Tier 1 stories WITH a real stat, within daily limit
 do_carousel = (story_tier == "1") and stat_is_real and carousel_allowed()
 if story_tier == "1" and not stat_is_real:
     print(f"Carousel skipped — no real stat found in: '{stat_number}'")
 if story_tier == "1" and stat_is_real and not carousel_allowed():
-    print("Carousel daily limit reached (2/day) — falling back to single card")
+    print("Carousel daily limit reached — falling back to single card")
 
 print(f"Tier:{story_tier} | Stat:'{stat_number}' | RealStat:{stat_is_real} | Carousel:{do_carousel} | Tweet:{x_char_count(tweet_text)} chars")
 print(f"DEBUG carousel fields — stat_label:'{stat_label}' | fact1:'{fact1}' | fact2:'{fact2}'")
 
-# Hard strip URLs from LinkedIn one more time
 linkedin_text = strip_urls(linkedin_text)
 
-# ── Instagram caption — punchy, hashtag-rich, no link (goes in bio) ──
+# Instagram caption
 ig_caption = f"""{headline1}
 
 {headline2}
@@ -1780,14 +1782,14 @@ Follow @theledgerwire.ai for daily AI & Finance intel.
 if x_char_count(tweet_text)>280:
     print("ERROR: Tweet over 280 — exiting"); exit(1)
 
-# Load used images for dedup
 used_images=load_used_images()
 
-# Always build slide 1 (existing card)
 _,used_img_url=generate_news_card(
     headline1,headline2,img_keyword,support_lines,hook_text,
     story_context=f"{STORY_TITLE} {STORY_SUMMARY}",
-    used_images=used_images
+    used_images=used_images,
+    story_title=STORY_TITLE,
+    story_summary=STORY_SUMMARY
 )
 
 if BUFFER_API_KEY and GITHUB_TOKEN:
@@ -1797,13 +1799,13 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
             save_used_image(used_img_url,used_images)
         time.sleep(5)
 
-        # ── X: always single card, no carousel ────────────────────
+        # X
         if BUFFER_PROFILE_X:
             time.sleep(3)
             ok_x = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
             print("X: SUCCESS" if ok_x else "X: FAILED")
 
-        # ── LinkedIn: PDF carousel for Tier 1 with real stat ───────
+        # LinkedIn
         if BUFFER_PROFILE_LI:
             time.sleep(3)
             pdf_posted = False
@@ -1813,10 +1815,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                 pdf_path = f"cards/carousel_{ts}.pdf"
                 pdf_url  = f"https://raw.githubusercontent.com/{REPO}/main/{pdf_path}"
 
-                # Build takeaway from TLW fields
                 takeaway_text = (
-                    f"The first sign a company has peaked isn't when competitors beat them. "
-                    f"It's when their own investors start talking to the press. "
                     f"{fact3}" if fact3 else
                     f"AI is landing on your P&L right now. The question is which side of the divide you're on."
                 )
@@ -1835,7 +1834,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                 if pdf_ok:
                     pushed_pdf = push_to_github("carousel.pdf", GITHUB_TOKEN, REPO, pdf_path)
                     if pushed_pdf:
-                        time.sleep(5)  # Let GitHub CDN propagate
+                        time.sleep(5)
                         ok_li = post_to_buffer_document(linkedin_text, pdf_url, BUFFER_PROFILE_LI, BUFFER_API_KEY)
                         print("LinkedIn PDF carousel: SUCCESS" if ok_li else "LinkedIn PDF carousel: FAILED — falling back to single card")
                         if ok_li:
@@ -1847,7 +1846,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                 ok_li = post_to_buffer(linkedin_text, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
 
-        # ── Instagram: PDF carousel (Tier 1) or single card ────────
+        # Instagram
         if BUFFER_PROFILE_IG:
             time.sleep(3)
             ig_posted = False
@@ -1879,7 +1878,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                 print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
         else:
             print("Instagram: skipped — add BUFFER_PROFILE_IG to GitHub secrets")
-        # ── Mark story as used ──────────────────────────────────
+
         save_used_story(story_hash(STORY_TITLE))
         print(f"Story hash saved: {story_hash(STORY_TITLE)}")
     else:
