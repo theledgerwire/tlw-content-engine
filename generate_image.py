@@ -25,7 +25,7 @@ IMAGE_KEYWORD       = os.environ.get("IMAGE_KEYWORD", "finance technology")
 CAROUSEL_MAX_DAILY  = 4
 CAROUSEL_COUNT_PATH = "data/carousel_count.json"
 PREVIEW_MODE      = os.environ.get("PREVIEW_MODE", "0") == "1"
-FORCE_STYLE       = os.environ.get("FORCE_STYLE", "").lower().strip()
+FORCE_STYLE       = os.environ.get("FORCE_STYLE", "dark").lower().strip()  # locked to dark for brand consistency
 
 # ── STYLE VARIANTS ────────────────────────────────────────────────
 STYLE_VARIANTS = [
@@ -805,30 +805,24 @@ def get_photo(keyword, story_context="", used_images=None):
     return None, None
 
 # ── GRADIENT ──────────────────────────────────────────────────────
-def apply_gradient(img, start=0.15, style=None):
+def apply_gradient(img, start=0.40, style=None):
     if style is None:
         style = ACTIVE_STYLE
     op        = style["gradient_opacity"]
-    sname     = style["name"]
-    if sname == "dark":
-        overlay_rgb = (10, 22, 40)
-        top_rgb     = (10, 22, 40)
-    elif sname == "vivid":
-        overlay_rgb = (0, 10, 30)
-        top_rgb     = (0, 10, 30)
-    else:
-        overlay_rgb = (15, 10, 5)
-        top_rgb     = (15, 10, 5)
+    overlay_rgb = (10, 22, 40)  # always navy — brand consistency
+    top_rgb     = (10, 22, 40)
     grad = Image.new("RGBA",(W,H),(0,0,0,0))
     gd   = ImageDraw.Draw(grad)
+    # Bottom gradient — starts at 40%, ramps to text area
     for y in range(int(H*start),H):
         t = float(y-H*start)/float(H*(1-start))
         t = max(0.0,min(1.0,t))
-        a = int(255*t**0.65 * op)
+        a = int(min(235, 250*t) * op)
         gd.line([(0,y),(W,y)],fill=(*overlay_rgb,a))
-    for y in range(0,120):
-        t = 1-(y/120)
-        a = int(180*t**0.5 * op)
+    # Top brand bar overlay — lighter so image shows through
+    for y in range(0,100):
+        t = 1-(y/100)
+        a = int(140*t**0.5 * op)
         gd.line([(0,y),(W,y)],fill=(*top_rgb,a))
     return Image.alpha_composite(img.convert("RGBA"),grad).convert("RGB")
 
