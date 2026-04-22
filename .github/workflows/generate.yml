@@ -48,6 +48,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install pillow requests reportlab
 
+      - name: Install Poppins font
+        run: |
+          sudo mkdir -p /usr/share/fonts/truetype/poppins
+          cd /tmp
+          curl -sL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf" -o Poppins-Bold.ttf
+          curl -sL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf" -o Poppins-Medium.ttf
+          curl -sL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf" -o Poppins-Regular.ttf
+          sudo cp Poppins-*.ttf /usr/share/fonts/truetype/poppins/
+          fc-cache -f
+
       - name: Generate and post card
         env:
           # Story inputs (from research_agent v2)
