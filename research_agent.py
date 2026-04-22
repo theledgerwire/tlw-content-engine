@@ -116,8 +116,18 @@ Reference angles that scored perfectly (match this caliber):
 - Bitcoin < $75K: "Single gold Bitcoin coin falling diagonally through deep navy space, motion blur trail of gold light behind it, subtle downward arrow formed by light rays, dramatic volumetric lighting, photorealistic, editorial magazine style"
 - Tim Cook: "Solitary silhouetted figure walking down a long dark modern hallway toward a large glowing gold apple-shape of light at the end, dramatic gold light rays emanating from the far end, photorealistic cinematic editorial, deep navy and gold palette"
 
-OUTPUT FORMAT
-Return ONLY a valid JSON array. No markdown fences, no preamble. Start directly with [:
+OUTPUT FORMAT — CRITICAL
+Your ENTIRE response must be a valid JSON array and nothing else.
+- Do NOT write any explanatory text before the JSON
+- Do NOT write phrases like "Here is the JSON" or "I now have the data"
+- Do NOT summarize what you found
+- Do NOT use markdown code fences (```)
+- The FIRST character of your response MUST be [
+- The LAST character of your response MUST be ]
+
+If you start typing anything other than [, stop and restart with [.
+
+Format:
 
 [{{
   "title": "12 word max wire headline",
@@ -146,7 +156,7 @@ Return ONLY a valid JSON array. No markdown fences, no preamble. Start directly 
             },
             json={
                 "model": "claude-sonnet-4-6",
-                "max_tokens": 4000,  # ↑ from 2000 — richer JSON needs room
+                "max_tokens": 6000,  # ↑ Enough room for full 9-story JSON even with brief preamble
                 "tools": [{"type": "web_search_20250305",
                            "name": "web_search",
                            "max_uses": 12}],  # ↑ from 5
@@ -166,13 +176,41 @@ Return ONLY a valid JSON array. No markdown fences, no preamble. Start directly 
                 text += block.get("text", "")
 
         text = text.strip()
+        print(f"Response preview (first 200 chars): {text[:200]}")
+
+        # Strip markdown fences if present
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
                 text = text[4:]
         text = text.strip()
 
-        stories = json.loads(text)
+        # Robust JSON array extraction — Claude sometimes adds preamble text
+        # before the JSON despite instructions. Find the first [ and last ].
+        stories = None
+        try:
+            stories = json.loads(text)
+        except json.JSONDecodeError:
+            start = text.find("[")
+            end   = text.rfind("]")
+            if start >= 0 and end > start:
+                json_slice = text[start:end + 1]
+                print(f"Found JSON slice at chars {start}-{end}, extracting...")
+                try:
+                    stories = json.loads(json_slice)
+                except json.JSONDecodeError as e2:
+                    print(f"Secondary JSON parse failed: {e2}")
+                    print(f"Slice preview: {json_slice[:300]}")
+                    return []
+            else:
+                print(f"No JSON array found in response")
+                print(f"Raw response: {text[:500]}")
+                return []
+
+        if not isinstance(stories, list):
+            print(f"Parsed JSON is not a list: {type(stories)}")
+            return []
+
         print(f"Claude returned {len(stories)} stories")
 
         # Strict recency filter — hard 48hr cutoff
