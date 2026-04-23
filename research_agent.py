@@ -75,7 +75,7 @@ stat_hook (goes in GOLD, huge): 2-7 characters MAX. Must be one of:
 - Power word (RARE, only when no number fits): "BANNED" / "OVER" / "ZERO"
 NEVER use full sentences. NEVER exceed 7 characters. Must be readable at 150pt font.
 
-sub_headline (goes in WHITE, medium): 3-8 words. MUST end with a period.
+sub_headline (goes in WHITE, medium): 3-6 words MAX. MUST end with a period. MUST fit on ONE line — if it wraps, it's too long.
 
 THE TWO-LINE STORY TEST — CRITICAL:
 A reader scrolling their feed will ONLY see stat_hook + sub_headline.
@@ -107,10 +107,19 @@ Good sub_headlines:
 tagline (closing line in caption): 5-8 words. Sharp, contrarian.
 Good: "Only one of those pays the bills." / "The flip nobody was modeling." / "Risk-off is back."
 
-body_line_1 & body_line_2 (grey body, each ≤ 8 words):
-Line 1 = the key fact. Line 2 = the consequence.
-Good: "Kelp DAO drained via LayerZero bridge." / "18% of rsETH supply — gone."
-Good: "Longest positive run since 1992." / "S&P -0.24% as Iran tensions return."
+body_line_1 & body_line_2 (grey body text, STRICTLY ≤ 6 words each):
+HARD LIMIT: Each line must be 6 words or fewer. Count the words. If it's 7+, rewrite shorter.
+Line 1 = the key fact. Line 2 = the consequence or context.
+Good (6 words or under):
+- "Kelp DAO drained via bridge." (5)
+- "18% of rsETH supply — gone." (6)
+- "Longest positive run since 1992." (5)
+- "S&P -0.24% on Iran tensions." (5)
+- "Earnings tonight. AI or cars?" (5)
+- "Q1 deliveries missed by 7,600." (5)
+Bad (too long — NEVER do this):
+- "Q1 deliveries missed by 7,600 units; 50K inventory overhang." ❌ (9 words)
+- "Wall St. watching auto gross margins above 17% threshold." ❌ (9 words)
 
 IMAGE ANGLE — TLW VISUAL DNA (THIS IS CRITICAL FOR IMAGE QUALITY)
 Every image_angle MUST be 40-70 words. Short prompts produce generic images. Match the reference angles below EXACTLY in specificity and length.
