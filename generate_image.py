@@ -196,7 +196,8 @@ def load_used_stories():
         print(f"Could not load used stories: {e}")
     return set()
 
-def save_used_story(title_hash):
+def save_used_story(title_hash, title_text=""):
+    """Save story hash AND title text for topic-level dedup."""
     try:
         import json as _json, base64 as _b64
         headers = {"Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -205,15 +206,21 @@ def save_used_story(title_hash):
             f"https://api.github.com/repos/{REPO}/contents/{USED_STORIES_PATH}",
             headers=headers, timeout=10
         )
-        existing = set()
+        existing_hashes = set()
+        existing_titles = []
         sha = None
         if r.status_code == 200:
             data = _b64.b64decode(r.json()["content"]).decode("utf-8")
-            existing = set(_json.loads(data).get("hashes", []))
+            parsed = _json.loads(data)
+            existing_hashes = set(parsed.get("hashes", []))
+            existing_titles = parsed.get("titles", [])
             sha = r.json().get("sha")
-        existing.add(title_hash)
-        hashes_list = list(existing)[-200:]
-        content_str = _json.dumps({"hashes": hashes_list}, indent=2)
+        existing_hashes.add(title_hash)
+        if title_text and title_text not in existing_titles:
+            existing_titles.append(title_text)
+        hashes_list = list(existing_hashes)[-200:]
+        titles_list = existing_titles[-30:]  # keep last 30 titles for topic dedup
+        content_str = _json.dumps({"hashes": hashes_list, "titles": titles_list}, indent=2)
         encoded = _b64.b64encode(content_str.encode()).decode()
         payload = {"message": "Update used stories", "content": encoded, "branch": "main"}
         if sha:
@@ -1906,8 +1913,8 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
         else:
             print("Instagram: skipped — add BUFFER_PROFILE_IG to GitHub secrets")
 
-        save_used_story(story_hash(STORY_TITLE))
-        print(f"Story hash saved: {story_hash(STORY_TITLE)}")
+        save_used_story(story_hash(STORY_TITLE), STORY_TITLE)
+        print(f"Story hash + title saved: {story_hash(STORY_TITLE)}")
     else:
         print("FAILED: GitHub push failed")
 else:
