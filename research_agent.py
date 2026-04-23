@@ -20,8 +20,9 @@ MAX_STORIES       = 9
 USED_STORIES_PATH = "data/used_stories.json"
 
 
-# ── Load already-used story hashes ────────────────────────────────
+# ── Load already-used story hashes AND recent titles ──────────────
 def load_used_stories():
+    """Returns (set of hashes, list of recent title strings)."""
     try:
         headers = {"Authorization": f"Bearer {GITHUB_TOKEN}",
                    "Accept": "application/vnd.github.v3+json"}
@@ -31,10 +32,13 @@ def load_used_stories():
         )
         if r.status_code == 200:
             data = base64.b64decode(r.json()["content"]).decode("utf-8")
-            return set(json.loads(data).get("hashes", []))
+            parsed = json.loads(data)
+            hashes = set(parsed.get("hashes", []))
+            titles = parsed.get("titles", [])  # NEW — list of recent title strings
+            return hashes, titles
     except Exception as e:
         print(f"Could not load used stories: {e}")
-    return set()
+    return set(), []
 
 
 def story_hash(title):
@@ -42,12 +46,30 @@ def story_hash(title):
 
 
 # ── Claude web search — upgraded research prompt ──────────────────
-def research_todays_stories(used_hashes):
+def research_todays_stories(used_hashes, recent_titles=None):
     today = datetime.now(timezone.utc).strftime("%B %d, %Y")
     print(f"Researching top stories for {today}...")
 
-    prompt = f"""You are the research editor for The Ledger Wire (TLW) — an AI & finance intelligence newsletter for operators, founders, and capital allocators. Today: {today}.
+    # Build "already covered" block from recent titles
+    already_covered = ""
+    if recent_titles:
+        titles_block = "\n".join(f"- {t}" for t in recent_titles[-30:])
+        already_covered = f"""
+ALREADY COVERED — DO NOT REPEAT THESE TOPICS (posted in last 48 hours):
+{titles_block}
 
+CRITICAL: If a story covers the SAME COMPANY + SAME EVENT as any title above, SKIP IT.
+Even if published today, even if from a different source, even if the angle is slightly different.
+Examples of what counts as a repeat:
+- "Tim Cook stepping down" and "Cook exits Apple CEO role" = SAME STORY, skip
+- "Kelp DAO hacked for $292M" and "Biggest DeFi hack of 2026" = SAME STORY, skip
+- "Tesla earnings preview" and "Tesla Q1 results" = SAME STORY, skip
+- "Tesla robotaxi update" ≠ "Tesla earnings" = DIFFERENT STORY, OK to include
+"""
+        print(f"Injecting {len(recent_titles)} recent titles for topic dedup")
+
+    prompt = f"""You are the research editor for The Ledger Wire (TLW) — an AI & finance intelligence newsletter for operators, founders, and capital allocators. Today: {today}.
+{already_covered}
 YOUR JOB
 Find the 9 strongest AI, finance, tech, crypto, and markets stories from the LAST 48 HOURS. Do thorough multi-category searches across at least these buckets:
 1. AI (model releases, labs, enterprise AI, revenue milestones)
@@ -344,10 +366,10 @@ def main():
     if not REPO:
         print("ERROR: GITHUB_REPO not set"); return
 
-    used_hashes = load_used_stories()
-    print(f"Loaded {len(used_hashes)} used story hashes")
+    used_hashes, recent_titles = load_used_stories()
+    print(f"Loaded {len(used_hashes)} used story hashes, {len(recent_titles)} recent titles")
 
-    stories = research_todays_stories(used_hashes)
+    stories = research_todays_stories(used_hashes, recent_titles)
 
     if not stories:
         print("No fresh stories found — exiting")
