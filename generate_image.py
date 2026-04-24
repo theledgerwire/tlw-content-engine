@@ -107,7 +107,7 @@ NAVY      = (10, 22, 40)
 DGREY     = (100, 115, 148)
 BODY_GREY = (190, 200, 215)
 BLACK     = (20, 20, 20)
-FOOTER_H  = 60
+FOOTER_H  = 6  # v18.1: thin gold strip
 
 # Poppins (premium) — installed via workflow YAML. Falls back to Liberation if missing.
 _POPPINS_BOLD = "/usr/share/fonts/truetype/poppins/Poppins-Bold.ttf"
@@ -308,7 +308,7 @@ def carousel_allowed():
         return True
     return count < CAROUSEL_MAX_DAILY
 
-print(f"=== TLW v18 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
+print(f"=== TLW v18.1 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
 
 # ── TWEET CHAR COUNT ──────────────────────────────────────────────
 def x_char_count(text):
@@ -337,6 +337,38 @@ def _build_linkedin_from_blob(blob):
     body    = f"{summary}\n\n→ {line1}\n→ {line2}"
     close   = f"\n\n{tagline}\n\nWhat's your read?"
     return strip_urls(f"{opening}\n\n{body}{close}")
+
+
+# ── ESTIMATE BASELINE FOR CHART COMPARISON ────────────────────
+def _estimate_baseline(stat_hook):
+    """
+    v18.1: Estimate a 'before' value from the stat hook for chart comparison.
+    """
+    if not stat_hook:
+        return "0"
+    import re as _re2
+    m = _re2.search(r'([+-]?)([\d.]+)%', stat_hook)
+    if m:
+        sign = m.group(1)
+        val  = float(m.group(2))
+        if sign == '+':
+            baseline = max(1, val * 0.35)
+        elif sign == '-':
+            baseline = val + 30
+        else:
+            baseline = max(1, val * 0.5)
+        return f"{baseline:.0f}%"
+    m = _re2.search(r'\$?([\d.]+)([BMKT]?)', stat_hook)
+    if m:
+        val = float(m.group(1))
+        suffix = m.group(2)
+        baseline = max(0.1, val * 0.4)
+        return f"${baseline:.1f}{suffix}"
+    m = _re2.search(r'([\d,]+)', stat_hook)
+    if m:
+        val = float(m.group(1).replace(',', ''))
+        return f"{int(val * 0.3):,}"
+    return "0"
 
 # ── CLAUDE: NEWS (legacy fallback — only used if no blob) ─────────
 def call_claude_news(title, summary):
@@ -563,8 +595,9 @@ def process_photo(img_data, style=None):
     left   = (nw-W)//2
     top    = (nh-H)//2
     photo  = photo.crop((left, top, left+W, top+H))
-    photo  = ImageEnhance.Color(photo).enhance(style["saturation"])
-    photo  = ImageEnhance.Brightness(photo).enhance(style["brightness"])
+    # v18.1: Slight saturation boost only — NO brightness reduction.
+    # The gradient handles all darkening. Pre-darkening kills image quality.
+    photo  = ImageEnhance.Color(photo).enhance(min(style["saturation"], 1.05))
     return photo
 
 def fetch_pexels(keyword, used_images):
@@ -817,21 +850,17 @@ def apply_gradient(img, start=0.40, style=None):
         style = ACTIVE_STYLE
     op        = style["gradient_opacity"]
     overlay_rgb = (10, 22, 40)  # always navy — brand consistency
-    top_rgb     = (10, 22, 40)
     grad = Image.new("RGBA",(W,H),(0,0,0,0))
     gd   = ImageDraw.Draw(grad)
-    # Bottom gradient — starts at 40%, ramps to text area
-    for y in range(int(H*start),H):
-        t = float(y-H*start)/float(H*(1-start))
-        t = max(0.0,min(1.0,t))
-        a = int(min(235, 250*t) * op)
-        gd.line([(0,y),(W,y)],fill=(*overlay_rgb,a))
-    # Top brand bar overlay — lighter so image shows through
-    for y in range(0,100):
-        t = 1-(y/100)
-        a = int(140*t**0.5 * op)
-        gd.line([(0,y),(W,y)],fill=(*top_rgb,a))
-    return Image.alpha_composite(img.convert("RGBA"),grad).convert("RGB")
+    # v18.1: Eased gradient — t^0.7 keeps image vivid in the middle,
+    # only going opaque in the bottom 25% where text lives.
+    for y in range(int(H * start), H):
+        t = float(y - H * start) / float(H * (1 - start))
+        t = max(0.0, min(1.0, t))
+        a = int(255 * min(1.0, t ** 0.7) * op)
+        gd.line([(0, y), (W, y)], fill=(*overlay_rgb, a))
+    # v18.1: NO top overlay — let the hero image breathe at the top.
+    return Image.alpha_composite(img.convert("RGBA"), grad).convert("RGB")
 
 def wrap_text(draw,text,font,max_width):
     words=text.split()
@@ -850,16 +879,8 @@ def wrap_text(draw,text,font,max_width):
     return lines
 
 def draw_footer(draw):
-    PAD=56
-    draw.rectangle([(0,H-72),(W,H)],fill=GOLD)
-    url_f=ImageFont.truetype(FONT_BOLD,19)
-    tag_f=ImageFont.truetype(FONT_REG,19)
-    btb=draw.textbbox((0,0),"THE LEDGER WIRE",font=url_f)
-    utb=draw.textbbox((0,0),"theledgerwire.com",font=tag_f)
-    uw=utb[2]-utb[0]
-    fy=H-72+(72-btb[3])//2
-    draw.text((PAD,fy),"THE LEDGER WIRE",font=url_f,fill=NAVY)
-    draw.text((W-PAD-uw,fy),"theledgerwire.com",font=tag_f,fill=NAVY)
+    # v18.1: Thin 6px gold strip — clean, minimal, no text clutter.
+    draw.rectangle([(0, H - 6), (W, H)], fill=GOLD)
 
 def draw_text_shadow(draw, pos, text, font, fill, shadow_color=(0,0,0), offset=3, blur_passes=2):
     x, y = pos
@@ -927,23 +948,24 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source="",support_lines=
     draw = ImageDraw.Draw(img)
     PAD     = 50
     MTW     = W - PAD - 40
-    FTR_H   = 72  # footer height
+    FTR_H   = 6  # v18.1: thin footer strip
 
     # ── Fonts ──
     mark_f  = ImageFont.truetype(FONT_BOLD, 22)
-    badge_f = ImageFont.truetype(FONT_BOLD, 16)
-    h1_f    = ImageFont.truetype(FONT_BOLD, 150)  # gold stat — hero size
+    badge_f = ImageFont.truetype(FONT_BOLD, 18)   # v18.1: 16→18
+    h1_f    = ImageFont.truetype(FONT_BOLD, 180)   # v18.1: 150→180 (hero stat)
     h2_f    = ImageFont.truetype(FONT_BOLD, 64)   # white sub-headline
-    body_f  = ImageFont.truetype(FONT_MED,  26)   # grey body lines
+    body_f  = ImageFont.truetype(FONT_MED,  28)    # v18.1: 26→28
     src_f   = ImageFont.truetype(FONT_REG,  18)
 
     # ── Gold left vertical bar ──
-    draw.rectangle([(0, 0), (10, H - FTR_H)], fill=GOLD)
+    draw.rectangle([(0, 0), (10, H)], fill=GOLD)  # v18.1: full height
 
     # ── Top-left: THE LEDGER WIRE with gold underline ──
     draw_text_shadow(draw, (40, 34), "THE LEDGER WIRE", mark_f, WHITE, offset=2)
     mb = draw.textbbox((40, 34), "THE LEDGER WIRE", font=mark_f)
-    draw.rectangle([(40, mb[3] + 4), (40 + 130, mb[3] + 7)], fill=GOLD)
+    mark_w = mb[2] - mb[0]
+    draw.rectangle([(40, mb[3] + 4), (40 + mark_w, mb[3] + 7)], fill=GOLD)  # v18.1: match text width
 
     # ── Source badge top-right ──
     if source:
@@ -955,17 +977,20 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source="",support_lines=
         box_h = th + pad_y * 2 + 4
         box_x = W - 40 - box_w
         box_y = 28
-        draw.rectangle(
+        draw.rounded_rectangle(
             [(box_x, box_y), (box_x + box_w, box_y + box_h)],
-            outline=GOLD, width=2
+            radius=4, outline=GOLD, width=2
         )
-        draw.text((box_x + pad_x, box_y + pad_y - 2), source, font=badge_f, fill=GOLD)
+        draw.text((box_x + pad_x, box_y + pad_y + 1), source, font=badge_f, fill=GOLD)
 
     # ── Measure text blocks for bottom-up layout ──
     # Auto-size H1 if it's too wide (e.g. long hooks like "13 DAYS")
     h1_test = draw.textbbox((0, 0), h1, font=h1_f)
     if (h1_test[2] - h1_test[0]) > MTW:
-        h1_f = ImageFont.truetype(FONT_BOLD, 120)
+        h1_f = ImageFont.truetype(FONT_BOLD, 150)
+        h1_test2 = draw.textbbox((0, 0), h1, font=h1_f)
+        if (h1_test2[2] - h1_test2[0]) > MTW:
+            h1_f = ImageFont.truetype(FONT_BOLD, 120)
 
     h1_lines  = wrap_text(draw, h1, h1_f, MTW)
     h2_lines  = wrap_text(draw, h2, h2_f, MTW)
@@ -981,7 +1006,7 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source="",support_lines=
 
     # Body lines (grey, 2 lines max)
     body_block_h = len(body_texts) * (bd_lh + 10) if body_texts else 0
-    body_y = footer_top - 28 - body_block_h
+    body_y = footer_top - 40 - body_block_h  # v18.1: more breathing room
 
     # Gold rule
     rule_y = body_y - 22
@@ -1021,7 +1046,7 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source="",support_lines=
     # ── Gold footer bar ──
     draw_footer(draw)
     img.save("card.png", "PNG")
-    print("Card saved (photo mode — v18 template)")
+    print("Card saved (photo mode — v18.1 template)")
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1,h2,support_lines=None,hook=""):
@@ -1521,6 +1546,7 @@ def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform
     safe_text = esc(post_text)
     cid       = channel_id.strip()
     imgs_gql  = ", ".join([f'{{ url: "{u}" }}' for u in image_urls])
+    thumb = thumbnail_url or doc_url
     query = (
         'mutation CreatePost {\n'
         '  createPost(input: {\n'
@@ -1557,7 +1583,7 @@ def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform
             if attempt < retries: time.sleep(5)
     return False
 
-def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
+def post_to_buffer_document(post_text, doc_url, channel_id, api_key, thumbnail_url=None, retries=2):
     print(f"Posting LinkedIn PDF document...")
     time.sleep(3)
     def esc(s):
@@ -1577,7 +1603,7 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, retries=2):
         '    ... on MutationError { message }\n'
         '  }\n'
         '}'
-    ) % (safe_text, cid, doc_url, doc_url)
+    ) % (safe_text, cid, doc_url, thumb)
     for attempt in range(retries + 1):
         try:
             r = requests.post(
@@ -1746,9 +1772,9 @@ if TLW_STORY:
         "stat_number":     TLW_STORY.get("stat_hook",   ""),
         "stat_label":      TLW_STORY.get("sub_headline", ""),
         "stat_context":    TLW_STORY.get("body_line_1",  ""),
-        "compare_a_label": "Before",
-        "compare_a_value": "",
-        "compare_b_label": "Now",
+        "compare_a_label": TLW_STORY.get("compare_a_label", "Before"),
+        "compare_a_value": TLW_STORY.get("compare_a_value", _estimate_baseline(TLW_STORY.get("stat_hook", ""))),
+        "compare_b_label": TLW_STORY.get("compare_b_label", "Now"),
         "compare_b_value": TLW_STORY.get("stat_hook", ""),
         "fact1":           TLW_STORY.get("body_line_1", ""),
         "fact2":           TLW_STORY.get("body_line_2", ""),
@@ -1799,6 +1825,13 @@ if story_tier == "1" and stat_is_real and not carousel_allowed():
 
 print(f"Tier:{story_tier} | Stat:'{stat_number}' | RealStat:{stat_is_real} | Carousel:{do_carousel} | Tweet:{x_char_count(tweet_text)} chars")
 print(f"DEBUG carousel fields — stat_label:'{stat_label}' | fact1:'{fact1}' | fact2:'{fact2}'")
+print(f"DEBUG compare — A:'{compare_a_label}'='{compare_a_value}' | B:'{compare_b_label}'='{compare_b_value}'")
+if not do_carousel:
+    _reasons = []
+    if story_tier != "1": _reasons.append(f"tier={story_tier} (need 1)")
+    if not stat_is_real: _reasons.append(f"stat '{stat_number}' has no $/%/digit")
+    if not carousel_allowed(): _reasons.append("daily limit reached")
+    print(f"CAROUSEL SKIPPED — reasons: {', '.join(_reasons)}")
 
 linkedin_text = strip_urls(linkedin_text)
 
@@ -1868,8 +1901,10 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                 if pdf_ok:
                     pushed_pdf = push_to_github("carousel.pdf", GITHUB_TOKEN, REPO, pdf_path)
                     if pushed_pdf:
-                        time.sleep(5)
-                        ok_li = post_to_buffer_document(linkedin_text, pdf_url, BUFFER_PROFILE_LI, BUFFER_API_KEY)
+                        # v18.1: Wait 20s for GitHub raw URL propagation (was 5s)
+                        print("Waiting 20s for GitHub raw URL propagation...")
+                        time.sleep(20)
+                        ok_li = post_to_buffer_document(linkedin_text, pdf_url, BUFFER_PROFILE_LI, BUFFER_API_KEY, thumbnail_url=RAW_URL)
                         print("LinkedIn PDF carousel: SUCCESS" if ok_li else "LinkedIn PDF carousel: FAILED — falling back to single card")
                         if ok_li:
                             pdf_posted = True
@@ -1880,11 +1915,11 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                 ok_li = post_to_buffer(linkedin_text, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
 
-        # Instagram
+        # Instagram — v18.1: always single image (IG doesn't support document posts)
         if BUFFER_PROFILE_IG:
             time.sleep(3)
-            ig_posted = False
-            if do_carousel and stat_number:
+            ig_posted_skip = True  # v18.1: skip PDF carousel for IG
+            if False:  # v18.1: disabled — IG doesn't support docs
                 print("--- Building Instagram PDF carousel ---")
                 ts_ig    = int(time.time()) + 1
                 pdf_ig_path = f"cards/ig_carousel_{ts_ig}.pdf"
