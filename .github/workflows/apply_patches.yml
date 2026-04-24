@@ -1,0 +1,25 @@
+name: Apply v18.1 Patches
+on:
+  workflow_dispatch:
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Apply patches
+        run: python apply_patches.py
+      - name: Commit patched file
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add generate_image.py
+          git commit -m "v18.1: visual quality + carousel fixes"
+          git push
+      - name: Cleanup patch script
+        run: |
+          git rm apply_patches.py
+          git commit -m "Remove one-time patch script"
+          git push
