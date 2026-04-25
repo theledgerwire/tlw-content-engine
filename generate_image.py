@@ -961,7 +961,7 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source="",support_lines=
     # ── Fonts ──
     mark_f  = ImageFont.truetype(FONT_BOLD, 22)
     badge_f = ImageFont.truetype(FONT_BOLD, 18)   # v18.1: 16→18
-    h1_f    = ImageFont.truetype(FONT_BOLD, 180)   # v18.1: 150→180 (hero stat)
+    h1_f    = ImageFont.truetype(FONT_BOLD, 160)   # v18.1b: 180→160 for better fit   # v18.1: 150→180 (hero stat)
     h2_f    = ImageFont.truetype(FONT_BOLD, 64)   # white sub-headline
     body_f  = ImageFont.truetype(FONT_MED,  28)    # v18.1: 26→28
     src_f   = ImageFont.truetype(FONT_REG,  18)
