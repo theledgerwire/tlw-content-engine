@@ -107,7 +107,7 @@ NAVY      = (10, 22, 40)
 DGREY     = (100, 115, 148)
 BODY_GREY = (190, 200, 215)
 BLACK     = (20, 20, 20)
-FOOTER_H  = 6  # v18.1: thin gold strip
+FOOTER_H  = 72  # v18.1: thin gold strip
 
 # Poppins (premium) — installed via workflow YAML. Falls back to Liberation if missing.
 _POPPINS_BOLD = "/usr/share/fonts/truetype/poppins/Poppins-Bold.ttf"
@@ -879,8 +879,16 @@ def wrap_text(draw,text,font,max_width):
     return lines
 
 def draw_footer(draw):
-    # v18.1: Thin 6px gold strip — clean, minimal, no text clutter.
-    draw.rectangle([(0, H - 6), (W, H)], fill=GOLD)
+    PAD = 56
+    draw.rectangle([(0, H-72), (W, H)], fill=GOLD)
+    url_f = ImageFont.truetype(FONT_BOLD, 19)
+    tag_f = ImageFont.truetype(FONT_REG, 19)
+    btb = draw.textbbox((0,0), "THE LEDGER WIRE", font=url_f)
+    utb = draw.textbbox((0,0), "theledgerwire.com", font=tag_f)
+    uw = utb[2] - utb[0]
+    fy = H - 72 + (72 - btb[3]) // 2
+    draw.text((PAD, fy), "THE LEDGER WIRE", font=url_f, fill=NAVY)
+    draw.text((W - PAD - uw, fy), "theledgerwire.com", font=tag_f, fill=NAVY)
 
 def draw_text_shadow(draw, pos, text, font, fill, shadow_color=(0,0,0), offset=3, blur_passes=2):
     x, y = pos
@@ -948,7 +956,7 @@ def card_with_photo(img,h1,h2,hook="",company_name=None,source="",support_lines=
     draw = ImageDraw.Draw(img)
     PAD     = 50
     MTW     = W - PAD - 40
-    FTR_H   = 6  # v18.1: thin footer strip
+    FTR_H   = 72  # v18.1: thin footer strip
 
     # ── Fonts ──
     mark_f  = ImageFont.truetype(FONT_BOLD, 22)
