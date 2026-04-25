@@ -1926,7 +1926,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
         # Instagram — v18.1: always single image (IG doesn't support document posts)
         if BUFFER_PROFILE_IG:
             time.sleep(3)
-            ig_posted_skip = True  # v18.1: skip PDF carousel for IG
+            # v18.1: IG always single image (no PDF carousel)
             if False:  # v18.1: disabled — IG doesn't support docs
                 print("--- Building Instagram PDF carousel ---")
                 ts_ig    = int(time.time()) + 1
@@ -1950,7 +1950,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                         print("Instagram PDF carousel: SUCCESS" if ok_ig else "Instagram PDF carousel: FAILED — falling back to single card")
                         if ok_ig:
                             ig_posted = True
-            if not ig_posted:
+            if True:  # v18.1 fix: always single image for IG
                 ok_ig = post_to_buffer_instagram(ig_caption, RAW_URL, BUFFER_PROFILE_IG, BUFFER_API_KEY)
                 print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
         else:
