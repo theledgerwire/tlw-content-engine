@@ -1,0 +1,20 @@
+name: Fix All v18.1b
+on:
+  workflow_dispatch:
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: python fix_all.py
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add generate_image.py research_agent.py
+          git commit -m "v18.1b: fixed fonts + text limits + hook variety" || echo "No changes"
+          git push
+          git rm fix_all.py
+          git commit -m "cleanup fix script"
+          git push
