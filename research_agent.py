@@ -197,6 +197,24 @@ Format:
   "stat_hook": "$30B",
   "sub_headline": "Anthropic ARR overtakes OpenAI.",
   "tagline": "Only one of those pays the bills.",
+
+CARD TEXT HARD LIMITS — these are rendering constraints, not suggestions:
+- stat_hook: MAX 7 characters including $/%/+. Examples: "$82K", "+71%", "4X", "FIRED.", "$1.75T", "TESLA", "OPENAI"
+- sub_headline: MAX 30 characters (5 words max, end with period). Must fit 1 line at 52pt on a 1080px card.
+- body_line_1: MAX 35 characters (6 words max)
+- body_line_2: MAX 35 characters (6 words max)
+- tagline: MAX 40 characters
+If your text exceeds these limits, REWRITE IT SHORTER. Never exceed.
+
+HOOK VARIETY — do NOT default to numbers every time:
+- STAT mode ($60B, +71%, $344M): use for money/data stories where the NUMBER is the story
+- POWER mode (FIRED., BANNED., OPEN., WAR.): use for conflict/disruption/crisis — single word + period
+- TENSION mode (TOO LATE?, WHO WINS?, RISK ON.): use for uncertain/two-sided stories
+- NAME mode (TESLA, OPENAI, META, NVIDIA): use when the COMPANY is the headline — all caps, no period
+Rule: if 3+ recent stories used STAT mode, the next story MUST use POWER, TENSION, or NAME mode.
+Never use STAT mode for stories where a power word or company name hits harder.
+Examples: "Meta fires 8000" → "META" not "8,000". "Tesla sales collapse" → "TESLA" not "-24.3%". "OpenAI ships GPT-5.5" → "OPENAI" not "2X".
+
   "body_line_1": "ARR now possibly ahead of OpenAI.",
   "body_line_2": "Money-loser to leader — in months.",
   "source_tag": "THE DECODER",

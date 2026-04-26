@@ -949,112 +949,88 @@ def get_source_label(story_title=""):
 # ── CARD: PHOTO ───────────────────────────────────────────────────
 def card_with_photo(img,h1,h2,hook="",company_name=None,source="",support_lines=None):
     """
-    TLW v18 card template — matches manual design:
-    Gold left bar | top mark + source badge | gold stat hero |
-    white sub | gold rule | 2 grey body lines | gold footer
+    TLW v18.1b — Right-sized fonts. No shrinking.
+    H1: 160pt locked, 1 line max. H2: 52pt, 2 lines max. Body: 28pt.
+    Text length enforced upstream by research_agent.
     """
     draw = ImageDraw.Draw(img)
     PAD     = 50
     MTW     = W - PAD - 40
-    FTR_H   = 72  # v18.1: thin footer strip
+    FTR_H   = 72
 
-    # ── Fonts ──
     mark_f  = ImageFont.truetype(FONT_BOLD, 22)
-    badge_f = ImageFont.truetype(FONT_BOLD, 18)   # v18.1: 16→18
-    h1_f    = ImageFont.truetype(FONT_BOLD, 160)   # v18.1b: 180→160 for better fit   # v18.1: 150→180 (hero stat)
-    h2_f    = ImageFont.truetype(FONT_BOLD, 64)   # white sub-headline
-    body_f  = ImageFont.truetype(FONT_MED,  28)    # v18.1: 26→28
-    src_f   = ImageFont.truetype(FONT_REG,  18)
+    badge_f = ImageFont.truetype(FONT_BOLD, 18)
+    h1_f    = ImageFont.truetype(FONT_BOLD, 160)
+    h2_f    = ImageFont.truetype(FONT_MED,  52)
+    body_f  = ImageFont.truetype(FONT_MED,  28)
 
-    # ── Gold left vertical bar ──
-    draw.rectangle([(0, 0), (10, H)], fill=GOLD)  # v18.1: full height
+    # ── Gold left bar — full height ──
+    draw.rectangle([(0, 0), (10, H)], fill=GOLD)
 
-    # ── Top-left: THE LEDGER WIRE with gold underline ──
+    # ── Header ──
     draw_text_shadow(draw, (40, 34), "THE LEDGER WIRE", mark_f, WHITE, offset=2)
     mb = draw.textbbox((40, 34), "THE LEDGER WIRE", font=mark_f)
     mark_w = mb[2] - mb[0]
-    draw.rectangle([(40, mb[3] + 4), (40 + mark_w, mb[3] + 7)], fill=GOLD)  # v18.1: match text width
+    draw.rectangle([(40, mb[3]+4), (40+mark_w, mb[3]+7)], fill=GOLD)
 
-    # ── Source badge top-right ──
+    # ── Source badge — rounded ──
     if source:
-        pad_x, pad_y = 14, 8
-        sb = draw.textbbox((0, 0), source, font=badge_f)
-        tw = sb[2] - sb[0]
-        th = sb[3] - sb[1]
-        box_w = tw + pad_x * 2
-        box_h = th + pad_y * 2 + 4
-        box_x = W - 40 - box_w
-        box_y = 28
-        draw.rounded_rectangle(
-            [(box_x, box_y), (box_x + box_w, box_y + box_h)],
-            radius=4, outline=GOLD, width=2
-        )
-        draw.text((box_x + pad_x, box_y + pad_y + 1), source, font=badge_f, fill=GOLD)
+        spx, spy = 14, 6
+        sb = draw.textbbox((0,0), source, font=badge_f)
+        stw = sb[2]-sb[0]; sth = sb[3]-sb[1]
+        bw2 = stw+spx*2; bh2 = sth+spy*2+8
+        bx2 = W-40-bw2; by2 = 28
+        draw.rounded_rectangle([(bx2,by2),(bx2+bw2,by2+bh2)], radius=4, outline=GOLD, width=2)
+        draw.text((bx2+spx, by2+spy+1), source, font=badge_f, fill=GOLD)
 
-    # ── Measure text blocks for bottom-up layout ──
-    # Auto-size H1 if it's too wide (e.g. long hooks like "13 DAYS")
-    h1_test = draw.textbbox((0, 0), h1, font=h1_f)
-    if (h1_test[2] - h1_test[0]) > MTW:
-        h1_f = ImageFont.truetype(FONT_BOLD, 150)
-        h1_test2 = draw.textbbox((0, 0), h1, font=h1_f)
-        if (h1_test2[2] - h1_test2[0]) > MTW:
-            h1_f = ImageFont.truetype(FONT_BOLD, 120)
+    # ── Width check — step down once if H1 overflows ──
+    h1_tw = draw.textbbox((0,0), h1, font=h1_f)[2]
+    if h1_tw > MTW:
+        h1_f = ImageFont.truetype(FONT_BOLD, 130)
 
-    h1_lines  = wrap_text(draw, h1, h1_f, MTW)
-    h2_lines  = wrap_text(draw, h2, h2_f, MTW)
-    body_texts = support_lines[:2] if support_lines else []
+    h1_lines   = wrap_text(draw, h1, h1_f, MTW)
+    h2_lines   = wrap_text(draw, h2, h2_f, MTW)
+    body_texts  = support_lines[:2] if support_lines else []
 
-    h1_lh = draw.textbbox((0, 0), "Ag", font=h1_f)[3]
-    h2_lh = draw.textbbox((0, 0), "Ag", font=h2_f)[3]
-    bd_lh = draw.textbbox((0, 0), "Ag", font=body_f)[3]
+    h1_lh = draw.textbbox((0,0), "Ag", font=h1_f)[3]
+    h2_lh = draw.textbbox((0,0), "Ag", font=h2_f)[3]
+    bd_lh = draw.textbbox((0,0), "Ag", font=body_f)[3]
 
     # ── Layout from bottom up ──
-    # Footer top edge
     footer_top = H - FTR_H
-
-    # Body lines (grey, 2 lines max)
     body_block_h = len(body_texts) * (bd_lh + 10) if body_texts else 0
-    body_y = footer_top - 40 - body_block_h  # v18.1: more breathing room
-
-    # Gold rule
+    body_y = footer_top - 28 - body_block_h
     rule_y = body_y - 22
-
-    # H2 sub-headline (white)
     h2_block_h = min(len(h2_lines), 2) * (h2_lh + 4)
     h2_y = rule_y - 10 - h2_block_h
-
-    # H1 stat hook (gold, hero)
-    h1_block_h = min(len(h1_lines), 2) * (h1_lh + 4)
+    h1_block_h = min(len(h1_lines), 1) * (h1_lh + 4)
     h1_y = h2_y - 6 - h1_block_h
 
-    # ── Draw: H1 stat in GOLD (hero) ──
+    # ── Draw H1 stat GOLD — 1 line only ──
     y = h1_y
-    for line in h1_lines[:2]:
-        draw_text_shadow(draw, (PAD, y), line, h1_f, GOLD,
-                         shadow_color=(0, 0, 0), offset=3)
+    for line in h1_lines[:1]:
+        draw_text_shadow(draw, (PAD, y), line, h1_f, GOLD, offset=3)
         y += h1_lh + 4
 
-    # ── Draw: H2 sub in WHITE ──
+    # ── Draw H2 sub WHITE — max 2 lines ──
     y = h2_y
     for line in h2_lines[:2]:
-        draw_text_shadow(draw, (PAD, y), line, h2_f, WHITE,
-                         shadow_color=(0, 0, 0), offset=3)
+        draw_text_shadow(draw, (PAD, y), line, h2_f, WHITE, offset=3)
         y += h2_lh + 4
 
-    # ── Draw: Gold rule ──
-    draw.rectangle([(PAD, rule_y), (PAD + 90, rule_y + 4)], fill=GOLD)
+    # ── Gold rule ──
+    draw.rectangle([(PAD, rule_y), (PAD+90, rule_y+4)], fill=GOLD)
 
-    # ── Draw: Body lines in GREY ──
+    # ── Body lines GREY ──
     y = body_y
     for line in body_texts:
-        draw_text_shadow(draw, (PAD, y), line, body_f, BODY_GREY,
-                         shadow_color=(0, 0, 0), offset=2)
+        draw_text_shadow(draw, (PAD, y), line, body_f, BODY_GREY, offset=2)
         y += bd_lh + 10
 
-    # ── Gold footer bar ──
+    # ── Footer ──
     draw_footer(draw)
     img.save("card.png", "PNG")
-    print("Card saved (photo mode — v18.1 template)")
+    print("Card saved (photo mode — v18.1b)")
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1,h2,support_lines=None,hook=""):
@@ -1949,8 +1925,7 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                         ok_ig = post_to_buffer_document(ig_caption, pdf_ig_url, BUFFER_PROFILE_IG, BUFFER_API_KEY)
                         print("Instagram PDF carousel: SUCCESS" if ok_ig else "Instagram PDF carousel: FAILED — falling back to single card")
                         if ok_ig:
-                            ig_posted = True
-            if True:  # v18.1 fix: always single image for IG
+                                        if True:  # v18.1 fix: always single image for IG
                 ok_ig = post_to_buffer_instagram(ig_caption, RAW_URL, BUFFER_PROFILE_IG, BUFFER_API_KEY)
                 print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
         else:
