@@ -629,9 +629,9 @@ def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_
     body_y = footer_top - 28 - body_block_h
     rule_y = body_y - 22
     h2_block_h = min(len(h2_lines), 2) * (h2_lh + 4)
-    h2_y = rule_y - 10 - h2_block_h
+    h2_y = rule_y - 6 - h2_block_h
     h1_block_h = min(len(h1_lines), 1) * (h1_lh + 4)
-    h1_y = h2_y - 6 - h1_block_h
+    h1_y = h2_y - 0 - h1_block_h
 
     y = h1_y
     for line in h1_lines[:1]:
