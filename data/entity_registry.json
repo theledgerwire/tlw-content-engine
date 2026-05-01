@@ -1,0 +1,169 @@
+{
+  "people": {
+    "elon_musk": {
+      "names": ["elon musk", "musk", "elon"],
+      "appearance": "tall muscular build, short brown hair, clean shaven or light stubble, strong jawline",
+      "default_setting": "dark industrial SpaceX facility with rocket components",
+      "default_outfit": "black t-shirt or dark navy suit, no tie",
+      "lighting": "dramatic side lighting with golden tones from the left",
+      "mood_negative": "jaw clenched, eyes narrowed with intensity, furrowed brow",
+      "mood_positive": "confident smirk, arms crossed, chin slightly raised",
+      "mood_neutral": "contemplative expression, looking into distance"
+    },
+    "sam_altman": {
+      "names": ["sam altman", "altman"],
+      "appearance": "shorter build, curly brown hair, clean shaven, youthful face, blue eyes",
+      "default_setting": "modern minimalist tech office with glass walls",
+      "default_outfit": "casual button-down shirt, no tie, or light navy blazer",
+      "lighting": "cool blue ambient light mixed with warm side light",
+      "mood_negative": "tight-lipped, cold defiant stare, hands clasped",
+      "mood_positive": "slight knowing smile, relaxed posture",
+      "mood_neutral": "calm composed expression, direct eye contact"
+    },
+    "jerome_powell": {
+      "names": ["jerome powell", "powell", "fed chair"],
+      "appearance": "silver gray hair, tall, serious face, clean shaven",
+      "default_setting": "Federal Reserve boardroom with dark wood paneling and Fed seal on wall",
+      "default_outfit": "dark navy suit, white dress shirt, dark tie",
+      "lighting": "golden chandelier light from above casting sharp shadows",
+      "mood_negative": "defiant expression, jaw tight, hands clasped on table",
+      "mood_positive": "measured confidence, slight nod",
+      "mood_neutral": "stoic composed expression, looking directly at camera"
+    },
+    "mark_zuckerberg": {
+      "names": ["mark zuckerberg", "zuckerberg", "zuck"],
+      "appearance": "short brown curly hair, pale complexion, slim build, youthful face",
+      "default_setting": "corporate glass and steel boardroom",
+      "default_outfit": "dark navy suit or gray t-shirt",
+      "lighting": "cold blue tech lighting with golden accents",
+      "mood_negative": "blank emotionless stare, eerily calm",
+      "mood_positive": "slight mechanical smile, hands together",
+      "mood_neutral": "flat expression, direct unblinking eye contact"
+    },
+    "donald_trump": {
+      "names": ["donald trump", "trump", "president trump"],
+      "appearance": "tall broad shoulders, blonde hair swept back, tan complexion",
+      "default_setting": "Oval Office or Mar-a-Lago grand ballroom with golden chandeliers",
+      "default_outfit": "dark navy suit, long red tie, white dress shirt",
+      "lighting": "warm golden ambient light, dramatic side shadows",
+      "mood_negative": "stern frown, pointing finger, leaning forward",
+      "mood_positive": "confident thumbs up, broad grin",
+      "mood_neutral": "arms crossed, evaluating expression"
+    },
+    "dario_amodei": {
+      "names": ["dario amodei", "amodei", "anthropic ceo"],
+      "appearance": "curly dark brown hair, glasses, medium build",
+      "default_setting": "dark data center control room with server racks and monitors",
+      "default_outfit": "dark navy suit, no tie, top button open",
+      "lighting": "red and amber warning lights mixed with golden side light",
+      "mood_negative": "serious concerned expression, arms crossed",
+      "mood_positive": "thoughtful half-smile, hands in pockets",
+      "mood_neutral": "contemplative gaze, slight frown"
+    },
+    "satya_nadella": {
+      "names": ["satya nadella", "nadella", "microsoft ceo"],
+      "appearance": "bald head, glasses, medium build, Indian features",
+      "default_setting": "modern Microsoft campus office with floor-to-ceiling windows",
+      "default_outfit": "dark navy suit, blue dress shirt, no tie",
+      "lighting": "clean natural window light with blue corporate tones",
+      "mood_negative": "tight jaw, arms crossed, looking away with displeasure",
+      "mood_positive": "warm genuine smile, open hand gestures",
+      "mood_neutral": "thoughtful expression, slight head tilt"
+    },
+    "andy_jassy": {
+      "names": ["andy jassy", "jassy", "amazon ceo"],
+      "appearance": "receding brown hair, medium build, casual executive look",
+      "default_setting": "massive data center with endless rows of glowing server racks",
+      "default_outfit": "dark blazer over blue button-down shirt, no tie",
+      "lighting": "golden server glow with blue ambient data center light",
+      "mood_negative": "serious focused expression",
+      "mood_positive": "confident relaxed lean, satisfied expression",
+      "mood_neutral": "calm composed, hands casually at sides"
+    },
+    "sundar_pichai": {
+      "names": ["sundar pichai", "pichai", "google ceo"],
+      "appearance": "dark hair, slim build, Indian features, clean shaven",
+      "default_setting": "modern tech campus with colorful accents",
+      "default_outfit": "dark navy or charcoal suit, no tie",
+      "lighting": "bright clean tech lighting with subtle color accents",
+      "mood_negative": "measured concern, diplomatic frown",
+      "mood_positive": "warm smile, open gestures",
+      "mood_neutral": "calm analytical expression"
+    },
+    "jensen_huang": {
+      "names": ["jensen huang", "huang", "nvidia ceo"],
+      "appearance": "gray-black hair, stocky build, trademark leather jacket",
+      "default_setting": "stage with massive GPU chip displayed behind him",
+      "default_outfit": "black leather jacket over black shirt",
+      "lighting": "green nvidia glow mixed with dramatic stage lighting",
+      "mood_negative": "serious intensity, leaning into microphone",
+      "mood_positive": "enthusiastic grin, holding up a chip",
+      "mood_neutral": "confident stance, hands in jacket pockets"
+    }
+  },
+  "companies": {
+    "google": {
+      "names": ["google", "alphabet", "gemini", "deepmind"],
+      "color_code": "red, blue, yellow, green swirling colors",
+      "visual_style": "AI eye with four-color iris, circuit board skin",
+      "alt_visuals": ["four colored lights in a dark room", "four colored keys unlocking a vault", "prism splitting white light into four colors"],
+      "avoid": "actual Google logo or wordmark"
+    },
+    "openai": {
+      "names": ["openai", "chatgpt", "gpt-5", "gpt-4"],
+      "color_code": "green-teal glow on dark background",
+      "visual_style": "hexagonal shape, neural network patterns, green glow",
+      "alt_visuals": ["green glowing doorway in dark room", "teal hexagonal crystal", "green aurora over data center"],
+      "avoid": "actual OpenAI logo"
+    },
+    "meta": {
+      "names": ["meta", "facebook", "instagram"],
+      "color_code": "blue infinity symbol glow",
+      "visual_style": "glass architecture, VR elements, blue infinite loop",
+      "alt_visuals": ["blue glowing infinity shape", "glass metaverse corridor", "blue holographic display"],
+      "avoid": "actual Meta logo"
+    },
+    "microsoft": {
+      "names": ["microsoft", "azure", "windows"],
+      "color_code": "four colored squares red green blue yellow",
+      "visual_style": "corporate glass tower, cloud infrastructure",
+      "alt_visuals": ["window casting four-colored light", "cloud fortress with four towers"],
+      "avoid": "actual Microsoft logo"
+    },
+    "apple": {
+      "names": ["apple", "iphone", "mac", "apple park"],
+      "color_code": "silver white minimalist",
+      "visual_style": "clean aluminum surfaces, product spotlights",
+      "alt_visuals": ["silver monolith in dark room", "minimalist white podium spotlight"],
+      "avoid": "actual Apple logo"
+    },
+    "amazon": {
+      "names": ["amazon", "aws", "prime"],
+      "color_code": "gold arrow, dark blue and orange",
+      "visual_style": "endless warehouse corridors, server racks with crowns",
+      "alt_visuals": ["golden arrow cutting through clouds", "server rack kingdom"],
+      "avoid": "actual Amazon logo"
+    },
+    "nvidia": {
+      "names": ["nvidia", "gpu", "cuda"],
+      "color_code": "nvidia green glow, black and green",
+      "visual_style": "massive GPU chip on dark marble, green circuit traces",
+      "alt_visuals": ["green glowing chip in dark vault", "emerald crystal processor"],
+      "avoid": "actual Nvidia logo"
+    },
+    "anthropic": {
+      "names": ["anthropic", "claude", "mythos"],
+      "color_code": "warm amber and brown, safety orange",
+      "visual_style": "secure data center, locked vault with amber glow",
+      "alt_visuals": ["amber shield on dark wall", "warm glowing server behind security glass"],
+      "avoid": "actual Anthropic logo"
+    },
+    "tesla": {
+      "names": ["tesla", "cybertruck"],
+      "color_code": "electric blue and silver",
+      "visual_style": "sleek car under spotlight, futuristic factory",
+      "alt_visuals": ["electric arc between two poles", "car silhouette with blue underglow"],
+      "avoid": "actual Tesla logo"
+    }
+  }
+}
