@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """
-TLW Research Agent v2
-- Strict 48-hour recency filter (no stale news escape hatch)
-- 12 web searches (up from 5) across categories
-- Richer JSON schema: passes image_angle + story_context to generate_image.py
-- TLW voice examples baked into the prompt
-- Triggers GitHub Actions for each qualifying story
+TLW Research Agent v2.1
+- Hook validation + character limit enforcement
+- Hook variety tracking (STAT/POWER/TENSION/NAME rotation)
+- Strict 48-hour recency filter
+- 12 web searches across categories
+- Richer JSON schema for generate_image.py
 """
 
 import os, json, time, base64, hashlib, requests
 from datetime import datetime, timezone
+
+# ── Hook Validator ──
+try:
+    from hook_validator import validate_and_fix_story, get_hook_variety_prompt_injection
+    HOOK_VALIDATOR_AVAILABLE = True
+    print("Hook validator loaded")
+except ImportError:
+    HOOK_VALIDATOR_AVAILABLE = False
+    print("Hook validator not available — running without validation")
 
 ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 GITHUB_TOKEN  = os.environ.get("GITHUB_TOKEN", "")
@@ -34,7 +43,7 @@ def load_used_stories():
             data = base64.b64decode(r.json()["content"]).decode("utf-8")
             parsed = json.loads(data)
             hashes = set(parsed.get("hashes", []))
-            titles = parsed.get("titles", [])  # NEW — list of recent title strings
+            titles = parsed.get("titles", [])
             return hashes, titles
     except Exception as e:
         print(f"Could not load used stories: {e}")
@@ -67,6 +76,16 @@ Examples of what counts as a repeat:
 - "Tesla robotaxi update" ≠ "Tesla earnings" = DIFFERENT STORY, OK to include
 """
         print(f"Injecting {len(recent_titles)} recent titles for topic dedup")
+
+    # Hook variety injection
+    hook_variety_note = ""
+    if HOOK_VALIDATOR_AVAILABLE:
+        try:
+            hook_variety_note = get_hook_variety_prompt_injection(USED_STORIES_PATH)
+            if hook_variety_note:
+                print(f"Hook variety rule: {hook_variety_note.strip()}")
+        except Exception as e:
+            print(f"Hook variety injection failed: {e}")
 
     prompt = f"""You are the research editor for The Ledger Wire (TLW) — an AI & finance intelligence newsletter for operators, founders, and capital allocators. Today: {today}.
 {already_covered}
@@ -159,22 +178,44 @@ Rules:
 - Think REAL WORLD objects: vault doors, bronze statues, glass buildings, gold coins, server racks, cargo ships, marble columns — not digital concepts
 - Dominant colors: deep navy (#0A1628) background + gold (#F5C518) accents
 - Subject positioned right-of-center or upper-half so text on left/bottom has breathing room
-- NO text in image. NO logos. NO faces. NO people. NO copyrighted characters.
+- NO text in image. NO logos. NO copyrighted characters.
 - NO abstract art, NO digital wireframes, NO floating geometric shapes, NO cursor icons
+
+ENTITY-AWARE IMAGES — for stories about specific people or companies:
+- If the story is about a SPECIFIC CEO/leader (Musk, Altman, Powell, Zuckerberg, etc.), the image_angle should describe that person in a cinematic setting. AI-generated portraits of public figures are allowed.
+- If two people are in conflict (Musk vs Altman, Altman vs Nadella), describe both in a tense composition — split frame, facing off, opposite sides of a table.
+- If the story is about a COMPANY (Google, Meta, etc.), use the company's brand colors creatively — NOT the actual logo. Example: Google = "four swirling colors red blue yellow green in an AI eye iris"
+- Person prompts: include appearance, outfit, expression, setting, lighting. Be specific about mood (angry, defiant, calm, victorious).
 
 Reference angles that scored perfectly — MATCH THIS LENGTH AND SPECIFICITY:
 - Kelp hack: "Cracked navy vault door with molten gold bleeding through fractures, crystal shards scattered on the polished floor below, dramatic side lighting from the right, volumetric gold light rays, deep navy and gold palette, photorealistic editorial photograph, shallow depth of field"
 - Nasdaq streak: "Bronze Wall Street charging bull on wet cobblestone street at dusk, subtle hairline crack on its bronze flank, warm gold light rays streaming from the left, blurred financial district buildings in background, cinematic low-angle shot, deep navy sky, photorealistic"
 - Anthropic ARR: "Two modern glass skyscrapers at dusk against deep navy sky, the taller tower bathed in warm golden sunset light and glowing from within, the shorter tower muted and cool in shadow, volumetric gold light rays between them, cinematic editorial photograph, shallow depth of field"
 - Bitcoin drop: "Single gold Bitcoin coin falling diagonally through deep navy space, motion blur trail of gold light behind it, subtle downward arrow formed by light rays, dramatic volumetric lighting, photorealistic, editorial magazine style"
-- Apple CEO: "Solitary silhouetted figure walking down a long dark modern hallway toward a large glowing gold apple-shape of light at the end, dramatic gold light rays emanating from the far end, photorealistic cinematic editorial, deep navy and gold palette"
 - Dell servers: "Long data center aisle with rows of dark server racks on both sides, warm gold LED indicators glowing through glass panels, volumetric light rays streaming down the corridor, cinematic wide-angle perspective, deep navy and gold palette, photorealistic editorial photograph"
-- iPhone China: "Premium smartphone lying face-up on a polished dark surface with gold dragon etching underneath, Shanghai skyline with Oriental Pearl Tower blurred in background at sunset, warm gold light rays, cinematic shallow depth of field, photorealistic editorial"
 
 COMMON MISTAKES TO AVOID:
 - "Digital cursor floating in space" → Too abstract. Use: "Illuminated computer mouse on dark marble desk with gold light reflecting off its surface"
 - "AI neural network visualization" → Too abstract. Use: "Single GPU chip on dark surface with gold circuit traces glowing, macro lens extreme close-up"
 - "Financial charts and graphs" → Too generic. Use: "Stack of gold bars on a dark marble trading desk, NYSE screens blurred in background"
+
+HOOK VARIETY — do NOT default to numbers every time:
+- STAT mode ($60B, +71%, $344M): use for money/data stories where the NUMBER is the story
+- POWER mode (FIRED., BANNED., OPEN., WAR.): use for conflict/disruption/crisis — single word + period
+- TENSION mode (TOO LATE?, WHO WINS?, RISK ON.): use for uncertain/two-sided stories
+- NAME mode (TESLA, OPENAI, META, NVIDIA): use when the COMPANY is the headline — all caps, no period
+Rule: if 3+ recent stories used STAT mode, the next story MUST use POWER, TENSION, or NAME mode.
+Never use STAT mode for stories where a power word or company name hits harder.
+{hook_variety_note}
+Examples: "Meta fires 8000" → "META" not "8,000". "Tesla sales collapse" → "TESLA" not "-24.3%". "OpenAI ships GPT-5.5" → "OPENAI" not "2X".
+
+CARD TEXT HARD LIMITS — these are rendering constraints, not suggestions:
+- stat_hook: MAX 7 characters including $/%/+. Examples: "$82K", "+71%", "4X", "FIRED.", "$1.75T", "TESLA", "OPENAI"
+- sub_headline: MAX 30 characters (5 words max, end with period). Must fit 1 line at 52pt on a 1080px card.
+- body_line_1: MAX 35 characters (6 words max)
+- body_line_2: MAX 35 characters (6 words max)
+- tagline: MAX 40 characters
+If your text exceeds these limits, REWRITE IT SHORTER. Never exceed.
 
 OUTPUT FORMAT — CRITICAL
 Your ENTIRE response must be a valid JSON array and nothing else.
@@ -197,24 +238,6 @@ Format:
   "stat_hook": "$30B",
   "sub_headline": "Anthropic ARR overtakes OpenAI.",
   "tagline": "Only one of those pays the bills.",
-
-CARD TEXT HARD LIMITS — these are rendering constraints, not suggestions:
-- stat_hook: MAX 7 characters including $/%/+. Examples: "$82K", "+71%", "4X", "FIRED.", "$1.75T", "TESLA", "OPENAI"
-- sub_headline: MAX 30 characters (5 words max, end with period). Must fit 1 line at 52pt on a 1080px card.
-- body_line_1: MAX 35 characters (6 words max)
-- body_line_2: MAX 35 characters (6 words max)
-- tagline: MAX 40 characters
-If your text exceeds these limits, REWRITE IT SHORTER. Never exceed.
-
-HOOK VARIETY — do NOT default to numbers every time:
-- STAT mode ($60B, +71%, $344M): use for money/data stories where the NUMBER is the story
-- POWER mode (FIRED., BANNED., OPEN., WAR.): use for conflict/disruption/crisis — single word + period
-- TENSION mode (TOO LATE?, WHO WINS?, RISK ON.): use for uncertain/two-sided stories
-- NAME mode (TESLA, OPENAI, META, NVIDIA): use when the COMPANY is the headline — all caps, no period
-Rule: if 3+ recent stories used STAT mode, the next story MUST use POWER, TENSION, or NAME mode.
-Never use STAT mode for stories where a power word or company name hits harder.
-Examples: "Meta fires 8000" → "META" not "8,000". "Tesla sales collapse" → "TESLA" not "-24.3%". "OpenAI ships GPT-5.5" → "OPENAI" not "2X".
-
   "body_line_1": "ARR now possibly ahead of OpenAI.",
   "body_line_2": "Money-loser to leader — in months.",
   "source_tag": "THE DECODER",
@@ -234,10 +257,10 @@ Examples: "Meta fires 8000" → "META" not "8,000". "Tesla sales collapse" → "
             },
             json={
                 "model": "claude-sonnet-4-6",
-                "max_tokens": 6000,  # ↑ Enough room for full 9-story JSON even with brief preamble
+                "max_tokens": 6000,
                 "tools": [{"type": "web_search_20250305",
                            "name": "web_search",
-                           "max_uses": 12}],  # ↑ from 5
+                           "max_uses": 12}],
                 "messages": [{"role": "user", "content": prompt}]
             },
             timeout=180
@@ -263,8 +286,7 @@ Examples: "Meta fires 8000" → "META" not "8,000". "Tesla sales collapse" → "
                 text = text[4:]
         text = text.strip()
 
-        # Robust JSON array extraction — Claude sometimes adds preamble text
-        # before the JSON despite instructions. Find the first [ and last ].
+        # Robust JSON array extraction
         stories = None
         try:
             stories = json.loads(text)
@@ -312,6 +334,15 @@ Examples: "Meta fires 8000" → "META" not "8,000". "Tesla sales collapse" → "
                 print(f"Skipping duplicate: {s.get('title', '')[:50]}")
 
         print(f"{len(fresh)} fresh stories after dedup")
+
+        # Validate hooks on each story
+        if HOOK_VALIDATOR_AVAILABLE:
+            for s in fresh:
+                try:
+                    validate_and_fix_story(s, USED_STORIES_PATH)
+                except Exception as e:
+                    print(f"Hook validation error: {e}")
+
         return fresh[:MAX_STORIES]
 
     except json.JSONDecodeError as e:
@@ -325,12 +356,9 @@ Examples: "Meta fires 8000" → "META" not "8,000". "Tesla sales collapse" → "
 
 # ── Trigger GitHub Actions workflow for each story ────────────────
 def trigger_workflow(story):
-    # Pass the whole enriched story as base64 JSON so generate_image.py
-    # gets all TLW voice fields + image_angle, not just title/summary.
     story_json  = json.dumps(story, ensure_ascii=False)
     encoded_blob = base64.b64encode(story_json.encode()).decode()
 
-    # Keep legacy fields populated for backwards compat with the existing workflow
     title   = story.get("title", "")
     summary = story.get("summary", "")
     keyword = story.get("keyword_fallback", "finance technology")
@@ -351,7 +379,6 @@ def trigger_workflow(story):
             "image_keyword":   keyword,
             "card_type":       "news",
             "weekly_headlines": "",
-            # NEW — full enriched payload for generate_image.py v18
             "story_blob":      encoded_blob,
         }
     }
@@ -364,17 +391,17 @@ def trigger_workflow(story):
     )
 
     if r.status_code == 204:
-        print(f"✅ Triggered: {title[:60]}")
+        print(f"\u2705 Triggered: {title[:60]}")
         return True
     else:
-        print(f"❌ Failed ({r.status_code}): {title[:60]} — {r.text[:100]}")
+        print(f"\u274c Failed ({r.status_code}): {title[:60]} — {r.text[:100]}")
         return False
 
 
 # ── Main ──────────────────────────────────────────────────────────
 def main():
     print("=" * 60)
-    print(f"TLW Research Agent v2 — {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"TLW Research Agent v2.1 — {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
     if not ANTHROPIC_KEY:
@@ -401,6 +428,7 @@ def main():
         print(f"\n[{i+1}/{len(stories)}] {story.get('title', '')[:70]}")
         print(f"  Source: {story.get('source', '')} | "
               f"Hook: {story.get('stat_hook', 'N/A')} | "
+              f"Mode: {story.get('hook_mode', '?')} | "
               f"Age: {story.get('published_hours_ago', '?')}h")
 
         ok = trigger_workflow(story)
