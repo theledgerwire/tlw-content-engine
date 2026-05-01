@@ -1,16 +1,29 @@
-# TLW v18.1b
-# Changes from v18:
-# - process_photo: no brightness pre-darkening (gradient handles fade)
-# - apply_gradient: eased curve (t^0.7), no top overlay
-# - card_with_photo: 160pt H1, 52pt H2, 28pt body, fixed sizes, no shrinking
-# - draw_footer: 72px branded gold bar restored
-# - Carousel: 20s GitHub wait, thumbnail fix, baseline estimation
-# - Instagram: always single image (IG doesn't support docs)
-# - Bugs fixed: thumb variable, ig_posted, indentation
+# TLW v18.2
+# Upgrades from v18.1b:
+# - image_dedup integration: tracks visual subjects, avoids repeats
+# - smart_prompts integration: entity-aware image generation (people + companies)
+# - Both modules are optional — pipeline works without them (graceful fallback)
 import os, re, time, random, requests, base64, json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 from datetime import datetime
+
+# ── Upgrade modules (optional) ──
+try:
+    from image_dedup import get_avoidance_prompt, save_used_angle, detect_subjects
+    IMAGE_DEDUP_AVAILABLE = True
+    print("Image dedup loaded")
+except ImportError:
+    IMAGE_DEDUP_AVAILABLE = False
+    print("Image dedup not available")
+
+try:
+    from smart_prompts import maybe_enhance_image_angle
+    SMART_PROMPTS_AVAILABLE = True
+    print("Smart prompts loaded")
+except ImportError:
+    SMART_PROMPTS_AVAILABLE = False
+    print("Smart prompts not available")
 
 # ── CREDENTIALS ───────────────────────────────────────────────────
 BUFFER_API_KEY    = os.environ.get("BUFFER_API_KEY", "")
@@ -277,7 +290,7 @@ def carousel_allowed():
     if not same_day: return True
     return count < CAROUSEL_MAX_DAILY
 
-print(f"=== TLW v18.1b === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
+print(f"=== TLW v18.2 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
 
 def x_char_count(text):
     t = re.sub(r'https?://\S+|[\w]+\.com\S*', 'X'*23, text)
@@ -461,10 +474,31 @@ def get_country_keywords(keyword, story_context=""):
 
 def generate_flux_prompt(title, summary, style=None):
     if style is None: style = ACTIVE_STYLE
+
+    # ── NEW: Try entity-aware prompt first (people/company detection) ──
+    if SMART_PROMPTS_AVAILABLE and TLW_STORY:
+        try:
+            enhanced = maybe_enhance_image_angle(TLW_STORY)
+            if enhanced:
+                avoid = ""
+                if IMAGE_DEDUP_AVAILABLE:
+                    try: avoid = get_avoidance_prompt()
+                    except: pass
+                print(f"Using ENTITY-AWARE prompt: {enhanced[:80]}...")
+                return f"{enhanced}{avoid}"
+        except Exception as e:
+            print(f"Smart prompt failed: {e} — falling back")
+
+    # ── Original: Use pre-written image_angle from research_agent ──
     if TLW_STORY and TLW_STORY.get("image_angle"):
         angle = TLW_STORY["image_angle"]
+        avoid = ""
+        if IMAGE_DEDUP_AVAILABLE:
+            try: avoid = get_avoidance_prompt()
+            except: pass
         print(f"Using pre-written image_angle: {angle[:80]}...")
-        return f"{angle}, {style['flux_style']}"
+        return f"{angle}{avoid}, {style['flux_style']}"
+
     if not ANTHROPIC_KEY: return None
     try:
         prompt = f"""You are an AI image director for The Ledger Wire. Story: {title} Summary: {summary}
@@ -510,7 +544,16 @@ def get_photo(keyword, story_context="", used_images=None):
         print("--- Trying AI image generation ---")
         flux_prompt = generate_flux_prompt(story_context or keyword, story_context, style=ACTIVE_STYLE)
         photo, img_url = fetch_flux_image(flux_prompt)
-        if photo: print("AI image success"); return photo, img_url
+        if photo:
+            print("AI image success")
+            # ── NEW: Track visual subjects for dedup ──
+            if IMAGE_DEDUP_AVAILABLE and flux_prompt:
+                try:
+                    story_data = TLW_STORY if TLW_STORY else {"stat_hook": keyword, "sub_headline": story_context[:50]}
+                    save_used_angle(story_data, flux_prompt, "AI")
+                except Exception as e:
+                    print(f"Dedup save failed: {e}")
+            return photo, img_url
         print("AI image failed \u2014 trying Pexels")
     country_kws = get_country_keywords(keyword, story_context)
     keywords_to_try = [keyword] + country_kws + PHOTO_FALLBACKS
@@ -590,7 +633,7 @@ def get_source_label(story_title=""):
 
 # ── CARD: PHOTO ───────────────────────────────────────────────────
 def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_lines=None):
-    """v18.1b: 160pt H1 (1 line), 52pt H2 (2 lines), 28pt body. Fixed sizes."""
+    """v18.2: 160pt H1 (1 line), 52pt H2 (2 lines), 28pt body. Fixed sizes."""
     draw = ImageDraw.Draw(img)
     PAD, MTW, FTR_H = 50, W - 50 - 40, 72
     mark_f = ImageFont.truetype(FONT_BOLD, 22)
@@ -645,7 +688,7 @@ def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_
         draw_text_shadow(draw, (PAD, y), line, body_f, BODY_GREY, offset=2); y += bd_lh + 10
     draw_footer(draw)
     img.save("card.png", "PNG")
-    print("Card saved (photo mode \u2014 v18.1b)")
+    print("Card saved (photo mode \u2014 v18.2)")
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1, h2, support_lines=None, hook=""):
@@ -719,7 +762,7 @@ def card_tweet_screenshot(tweet_text, label="THIS WEEK"):
     draw.text((W-72-(utb[2]-utb[0]),CY+CH+28),"theledgerwire.com",font=ubf,fill=WHITE)
     img.save("card.png","PNG"); print("Card saved (tweet screenshot)")
 
-# ── PDF CAROUSEL ──────────────────────────────────────────────────
+# ── PDF CAROUSEL (unchanged from v18.1b) ─────────────────────────
 def generate_carousel_pdf(output_path, h1, h2, hook, stat_number, stat_label, stat_context, compare_a_label, compare_a_value, compare_b_label, compare_b_value, fact1, fact2, fact3, takeaway):
     try:
         from reportlab.pdfgen import canvas as rl_canvas
@@ -748,7 +791,6 @@ def generate_carousel_pdf(output_path, h1, h2, hook, stat_number, stat_label, st
         c.setFillColor(_NAVY); c.setFont('TLW-Bold',18); c.drawString(40,18,"THE LEDGER WIRE")
         c.setFont('TLW-Reg',16); c.drawRightString(_W-40,18,"theledgerwire.com")
     c=rl_canvas.Canvas(output_path,pagesize=(_W,_H))
-    # Slide 1
     c.setFillColor(_NAVY); c.rect(0,0,_W,_H,fill=1,stroke=0)
     c.setFillColor(_GOLD); c.rect(0,56,8,_H-56,fill=1,stroke=0)
     c.setFont('TLW-Bold',20); c.drawString(52,_H-52,"THE LEDGER WIRE")
@@ -763,7 +805,6 @@ def generate_carousel_pdf(output_path, h1, h2, hook, stat_number, stat_label, st
     if hook: c.setFillColor(_WHITE); c.setFont('TLW-Bold',30); c.drawString(52,y-14,hook)
     c.setFillColor(HexColor('#8892A4')); c.setFont('TLW-Reg',18); c.drawRightString(_W-40,72,"Swipe for the data \u2192")
     _footer(c,0); c.showPage()
-    # Slide 2
     c.setFillColor(_WHITE); c.rect(0,0,_W,_H,fill=1,stroke=0)
     c.setFillColor(_UABLUE); c.rect(0,_H-18,_W,18,fill=1,stroke=0)
     c.setFillColor(_GOLD); c.rect(0,_H-32,_W,14,fill=1,stroke=0)
@@ -792,7 +833,6 @@ def generate_carousel_pdf(output_path, h1, h2, hook, stat_number, stat_label, st
         c.setFillColor(_NAVY); c.setFont('TLW-Bold',18); c.drawCentredString(bx+bw/2,cbot-26,lbl)
     c.setFillColor(_UABLUE); c.setFont('TLW-Bold',38); c.drawString(52,66,stat_number)
     _footer(c,1); c.showPage()
-    # Slide 3
     c.setFillColor(_WHITE); c.rect(0,0,_W,_H,fill=1,stroke=0)
     c.setFillColor(_GOLD); c.rect(0,56,10,_H-56,fill=1,stroke=0)
     c.setFont('TLW-Bold',20); c.drawString(52,_H-52,"THE LEDGER WIRE")
@@ -831,8 +871,7 @@ def push_to_github(image_path, token, repo, file_path):
 
 # ── BUFFER ────────────────────────────────────────────────────────
 def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform="", retries=2):
-    print(f"Posting carousel to Buffer {platform} ({len(image_urls)} slides)...")
-    time.sleep(3)
+    print(f"Posting carousel to Buffer {platform} ({len(image_urls)} slides)..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
     imgs_gql = ", ".join([f'{{ url: "{u}" }}' for u in image_urls])
@@ -854,11 +893,9 @@ def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform
     return False
 
 def post_to_buffer_document(post_text, doc_url, channel_id, api_key, thumbnail_url=None, retries=2):
-    print(f"Posting LinkedIn PDF document...")
-    time.sleep(3)
+    print(f"Posting LinkedIn PDF document..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
-    safe_text = esc(post_text); cid = channel_id.strip()
-    thumb = thumbnail_url or doc_url
+    safe_text = esc(post_text); cid = channel_id.strip(); thumb = thumbnail_url or doc_url
     query = ('mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: { documents: [{ url: "%s", title: "The Ledger Wire", thumbnailUrl: "%s" }] }\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}') % (safe_text, cid, doc_url, thumb)
     for attempt in range(retries + 1):
         try:
@@ -1020,13 +1057,11 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
         if used_img_url: save_used_image(used_img_url, used_images)
         time.sleep(5)
 
-        # X
         if BUFFER_PROFILE_X:
             time.sleep(3)
             ok_x = post_to_buffer(tweet_text, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
             print("X: SUCCESS" if ok_x else "X: FAILED")
 
-        # LinkedIn
         if BUFFER_PROFILE_LI:
             time.sleep(3)
             pdf_posted = False
@@ -1056,7 +1091,6 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
                 ok_li = post_to_buffer(linkedin_text, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
                 print("LinkedIn: SUCCESS" if ok_li else "LinkedIn: FAILED")
 
-        # Instagram
         if BUFFER_PROFILE_IG:
             time.sleep(3)
             ok_ig = post_to_buffer_instagram(ig_caption, RAW_URL, BUFFER_PROFILE_IG, BUFFER_API_KEY)
