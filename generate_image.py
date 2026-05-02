@@ -502,7 +502,7 @@ def generate_flux_prompt(title, summary, style=None):
     if not ANTHROPIC_KEY: return None
     try:
         prompt = f"""You are an AI image director for The Ledger Wire. Story: {title} Summary: {summary}
-Generate an image prompt. RULES: Match story literally. Style: {style["flux_style"]}. NO text/logos. Editorial photography. Max 25 words."""
+Generate an image prompt. RULES: Match story literally. Style: {style["flux_style"]}. NO text. Editorial photography. Max 25 words."""
         r = requests.post("https://api.anthropic.com/v1/messages",
             headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
             json={"model": "claude-sonnet-4-6", "max_tokens": 100, "messages": [{"role": "user", "content": prompt}]}, timeout=30)
@@ -515,7 +515,7 @@ Generate an image prompt. RULES: Match story literally. Style: {style["flux_styl
 
 def fetch_flux_image(img_prompt):
     if not FAL_KEY or not img_prompt: return None, None
-    full_prompt = f"{img_prompt}, cinematic editorial photograph, deep navy and gold color palette, photorealistic, financial magazine style, dramatic lighting, no text, no logos, no watermarks"
+    full_prompt = f"{img_prompt}, cinematic editorial photograph, deep navy and gold color palette, photorealistic, financial magazine style, dramatic lighting, no text, no watermarks"
     try:
         r = requests.post("https://fal.run/xai/grok-imagine-image", headers={"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"},
             json={"prompt": full_prompt, "image_size": "square_hd", "num_images": 1}, timeout=60)
