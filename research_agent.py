@@ -178,7 +178,7 @@ Rules:
 - Think REAL WORLD objects: vault doors, bronze statues, glass buildings, gold coins, server racks, cargo ships, marble columns — not digital concepts
 - Dominant colors: deep navy (#0A1628) background + gold (#F5C518) accents
 - Subject positioned right-of-center or upper-half so text on left/bottom has breathing room
-- NO text in image. NO logos. NO copyrighted characters.
+- NO text in image. NO copyrighted characters. Logos and brand elements are OK if they serve the story.
 - NO abstract art, NO digital wireframes, NO floating geometric shapes, NO cursor icons
 
 ENTITY-AWARE IMAGES — for stories about specific people or companies:
