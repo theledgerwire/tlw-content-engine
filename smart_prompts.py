@@ -13,7 +13,7 @@ Usage in generate_image.py:
 import json, os, random
 
 REGISTRY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'entity_registry.json')
-SUFFIX = "shallow depth of field, cinematic editorial photograph, deep navy and gold color palette, photorealistic, no text, no logos, no watermarks"
+SUFFIX = "shallow depth of field, cinematic editorial photograph, deep navy and gold color palette, photorealistic, no text, no watermarks"
 
 def load_registry():
     for p in [REGISTRY_PATH, 'data/entity_registry.json']:
