@@ -503,7 +503,7 @@ def generate_flux_prompt(title, summary, style=None):
     if not ANTHROPIC_KEY: return None
     try:
         prompt = f"""You are an AI image director for The Ledger Wire. Story: {title} Summary: {summary}
-Generate an image prompt. RULES: Match story literally. Style: {style["flux_style"]}. NO text. Editorial photography. Max 25 words."""
+Generate an image prompt. RULES: Match story literally. Style: {style["flux_style"]}. NO text. NO people. NO faces. Editorial photography. Max 25 words."""
         r = requests.post("https://api.anthropic.com/v1/messages",
             headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
             json={"model": "claude-sonnet-4-6", "max_tokens": 100, "messages": [{"role": "user", "content": prompt}]}, timeout=30)
@@ -964,7 +964,7 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
     print(f"Posting to Buffer Instagram..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
-    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: reminder,\n    mode: addToQueue,\n    assets: { images: [{ url: "%s" }] }\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
+    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: { images: [{ url: "%s" }] }\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
     for attempt in range(retries + 1):
         try:
             r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
