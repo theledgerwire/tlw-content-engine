@@ -10,7 +10,7 @@ Usage in generate_image.py:
     if enhanced_angle:
         flux_prompt = enhanced_angle  # use entity-aware prompt instead of Claude's
 """
-import json, os, random
+import json, os, random, re
 
 REGISTRY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'entity_registry.json')
 SUFFIX = "shallow depth of field, cinematic editorial photograph, deep navy and gold color palette, photorealistic, no text, no watermarks"
@@ -20,6 +20,11 @@ def load_registry():
         if os.path.exists(p):
             with open(p, 'r') as f: return json.load(f)
     print("[ENTITY] Registry not found"); return {'people': {}, 'companies': {}}
+
+def _word_match(name, text):
+    """Whole-word matching to prevent 'mac' matching 'tarmac' etc."""
+    pattern = r'\b' + re.escape(name.lower()) + r'\b'
+    return bool(re.search(pattern, text))
 
 def _detect_mood(story):
     text = ' '.join([story.get(k,'') for k in ['stat_hook','sub_headline','body_line_1','body_line_2','title','summary']]).lower()
@@ -37,17 +42,34 @@ def _classify(story):
     people = []
     for key, data in registry.get('people', {}).items():
         names = data.get('names', [key.replace('_',' ')])
-        if any(n.lower() in text for n in names):
+        if any(_word_match(n, text) for n in names):
             people.append((key, data))
     
     companies = []
     for key, data in registry.get('companies', {}).items():
         names = data.get('names', [key])
-        if any(n.lower() in text for n in names):
+        if any(_word_match(n, text) for n in names):
             companies.append((key, data))
     
     if len(people) >= 2: return 'VERSUS', people[:2]
     if len(people) == 1: return 'PORTRAIT', people
+    
+    # CEO-company mapping: if company detected, check if we know its CEO
+    # and upgrade to PORTRAIT instead of generic BRAND
+    CEO_MAP = {
+        'apple': 'tim_cook', 'microsoft': 'satya_nadella', 'amazon': 'andy_jassy',
+        'google': 'sundar_pichai', 'meta': 'mark_zuckerberg', 'nvidia': 'jensen_huang',
+        'tesla': 'elon_musk', 'openai': 'sam_altman', 'anthropic': 'dario_amodei',
+        'berkshire': 'greg_abel', 'palantir': 'alex_karp',
+    }
+    if companies and not people:
+        company_key = companies[0][0]
+        ceo_key = CEO_MAP.get(company_key)
+        if ceo_key and ceo_key in registry.get('people', {}):
+            ceo_data = registry['people'][ceo_key]
+            print(f"[ENTITY] CEO mapping: {company_key} → {ceo_key} (upgrading BRAND to PORTRAIT)")
+            return 'PORTRAIT', [(ceo_key, ceo_data)]
+    
     if companies: return 'BRAND', companies[:1]
     return 'SCENE', []
 
