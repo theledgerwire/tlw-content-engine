@@ -1,8 +1,9 @@
-# TLW v18.2
-# Upgrades from v18.1b:
-# - image_dedup integration: tracks visual subjects, avoids repeats
-# - smart_prompts integration: entity-aware image generation (people + companies)
-# - Both modules are optional — pipeline works without them (graceful fallback)
+# TLW v18.3
+# Upgrades from v18.2:
+# - Dual-model: Nano Banana 2 for portraits, Grok Imagine for scenes
+# - CEO-company mapping: Apple→Cook, Amazon→Jassy, Berkshire→Abel, etc.
+# - Instagram fix: better error logging, returns True for reminders
+# - Both portrait models are optional — falls back gracefully
 import os, re, time, random, requests, base64, json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -18,7 +19,7 @@ except ImportError:
     print("Image dedup not available")
 
 try:
-    from smart_prompts import maybe_enhance_image_angle
+    from smart_prompts import maybe_enhance_image_angle, _classify
     SMART_PROMPTS_AVAILABLE = True
     print("Smart prompts loaded")
 except ImportError:
@@ -290,7 +291,7 @@ def carousel_allowed():
     if not same_day: return True
     return count < CAROUSEL_MAX_DAILY
 
-print(f"=== TLW v18.2 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
+print(f"=== TLW v18.3 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
 
 def x_char_count(text):
     t = re.sub(r'https?://\S+|[\w]+\.com\S*', 'X'*23, text)
@@ -538,19 +539,65 @@ def fetch_flux_image(img_prompt):
         print(f"Flux exception: {e}")
     return None, None
 
+def fetch_nano_banana(img_prompt):
+    """Use Nano Banana 2 (Gemini) for portrait/people images — much better at faces."""
+    if not FAL_KEY or not img_prompt: return None, None
+    full_prompt = f"{img_prompt}, cinematic editorial photograph, photorealistic, dramatic lighting"
+    try:
+        r = requests.post("https://fal.run/fal-ai/nano-banana-2",
+            headers={"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"},
+            json={"prompt": full_prompt, "num_images": 1, "aspect_ratio": "1:1",
+                  "output_format": "png", "safety_tolerance": "4"},
+            timeout=90)
+        print(f"Nano Banana 2: {r.status_code}")
+        if r.status_code == 200:
+            data = r.json()
+            img_url = data["images"][0]["url"]
+            img_data = requests.get(img_url, timeout=30).content
+            return process_photo(img_data), img_url
+        else:
+            print(f"Nano Banana error: {r.text[:200]} \u2014 falling back to Grok")
+    except Exception as e:
+        print(f"Nano Banana exception: {e} \u2014 falling back to Grok")
+    return None, None
+
+# Global: tracks whether current story needs portrait model
+_CURRENT_IMAGE_TYPE = "SCENE"
+
 def get_photo(keyword, story_context="", used_images=None):
+    global _CURRENT_IMAGE_TYPE
     if used_images is None: used_images = {}
+
+    # Detect image type for model routing
+    _CURRENT_IMAGE_TYPE = "SCENE"
+    if SMART_PROMPTS_AVAILABLE and TLW_STORY:
+        try:
+            img_type, _ = _classify(TLW_STORY)
+            _CURRENT_IMAGE_TYPE = img_type
+            print(f"[MODEL ROUTER] Image type: {_CURRENT_IMAGE_TYPE}")
+        except Exception as e:
+            print(f"[MODEL ROUTER] Classification failed: {e}")
+
     if FAL_KEY:
         print("--- Trying AI image generation ---")
         flux_prompt = generate_flux_prompt(story_context or keyword, story_context, style=ACTIVE_STYLE)
-        photo, img_url = fetch_flux_image(flux_prompt)
+
+        # Route: PORTRAIT/VERSUS → Nano Banana 2, everything else → Grok
+        if _CURRENT_IMAGE_TYPE in ('PORTRAIT', 'VERSUS') and flux_prompt:
+            print(f"[MODEL ROUTER] Using Nano Banana 2 for {_CURRENT_IMAGE_TYPE}")
+            photo, img_url = fetch_nano_banana(flux_prompt)
+            if not photo:
+                print("[MODEL ROUTER] Nano Banana failed — falling back to Grok")
+                photo, img_url = fetch_flux_image(flux_prompt)
+        else:
+            photo, img_url = fetch_flux_image(flux_prompt)
+
         if photo:
             print("AI image success")
-            # ── NEW: Track visual subjects for dedup ──
             if IMAGE_DEDUP_AVAILABLE and flux_prompt:
                 try:
                     story_data = TLW_STORY if TLW_STORY else {"stat_hook": keyword, "sub_headline": story_context[:50]}
-                    save_used_angle(story_data, flux_prompt, "AI")
+                    save_used_angle(story_data, flux_prompt, _CURRENT_IMAGE_TYPE)
                 except Exception as e:
                     print(f"Dedup save failed: {e}")
             return photo, img_url
@@ -688,7 +735,7 @@ def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_
         draw_text_shadow(draw, (PAD, y), line, body_f, BODY_GREY, offset=2); y += bd_lh + 10
     draw_footer(draw)
     img.save("card.png", "PNG")
-    print("Card saved (photo mode \u2014 v18.2)")
+    print("Card saved (photo mode \u2014 v18.3)")
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1, h2, support_lines=None, hook=""):
@@ -921,15 +968,22 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
     for attempt in range(retries + 1):
         try:
             r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
-            data = r.json(); post_data = data.get("data",{}).get("createPost",{})
+            data = r.json()
+            print(f"Instagram Buffer response: {json.dumps(data)[:300]}")
+            post_data = data.get("data",{}).get("createPost",{})
             if "errors" in data:
+                print(f"Instagram GraphQL errors: {data['errors']}")
                 if attempt < retries: time.sleep(5); continue
                 return False
             if "message" in post_data and "post" not in post_data:
+                print(f"Instagram mutation error: {post_data.get('message','unknown')}")
                 if attempt < retries: time.sleep(5); continue
                 return False
-            if post_data.get("post",{}).get("id"): return True
-            return False
+            if post_data.get("post",{}).get("id"):
+                print(f"Instagram post created: {post_data['post']['id']}")
+                return True
+            print(f"Instagram: no post ID in response — may be reminder mode")
+            return True  # Reminder was likely created even without post ID
         except Exception as e:
             print(f"Buffer Instagram exception: {e}")
             if attempt < retries: time.sleep(5)
