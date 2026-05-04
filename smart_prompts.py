@@ -55,7 +55,7 @@ def _classify(story):
     if len(people) == 1: return 'PORTRAIT', people
     
     # CEO-company mapping: if company detected, check if we know its CEO
-    # and upgrade to PORTRAIT instead of generic BRAND
+    # ROTATION: alternate between CEO portrait and brand visual for variety
     CEO_MAP = {
         'apple': 'tim_cook', 'microsoft': 'satya_nadella', 'amazon': 'andy_jassy',
         'google': 'sundar_pichai', 'meta': 'mark_zuckerberg', 'nvidia': 'jensen_huang',
@@ -66,9 +66,19 @@ def _classify(story):
         company_key = companies[0][0]
         ceo_key = CEO_MAP.get(company_key)
         if ceo_key and ceo_key in registry.get('people', {}):
-            ceo_data = registry['people'][ceo_key]
-            print(f"[ENTITY] CEO mapping: {company_key} → {ceo_key} (upgrading BRAND to PORTRAIT)")
-            return 'PORTRAIT', [(ceo_key, ceo_data)]
+            # Rotation: use company name hash + day to alternate
+            # Same company on same day always gets same type
+            # Different day = different type (portrait vs brand)
+            from datetime import datetime
+            day_hash = (hash(company_key) + datetime.now().timetuple().tm_yday) % 3
+            # 0,1 = PORTRAIT (67%), 2 = BRAND (33%) — portraits are more engaging
+            if day_hash <= 1:
+                ceo_data = registry['people'][ceo_key]
+                print(f"[ENTITY] CEO mapping: {company_key} → {ceo_key} (PORTRAIT turn, day_hash={day_hash})")
+                return 'PORTRAIT', [(ceo_key, ceo_data)]
+            else:
+                print(f"[ENTITY] Brand turn for {company_key} (day_hash={day_hash}, alternating)")
+                return 'BRAND', companies[:1]
     
     if companies: return 'BRAND', companies[:1]
     return 'SCENE', []
