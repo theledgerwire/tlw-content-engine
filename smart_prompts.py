@@ -82,6 +82,71 @@ CEO_MAP = {
     'microstrategy': 'michael_saylor', 'strategy': 'michael_saylor',
 }
 
+# Reverse map: person name → company key (for fallback visuals)
+PERSON_COMPANY_MAP = {
+    'saylor': ['bitcoin', 'microstrategy'], 'michael saylor': ['bitcoin'],
+    'musk': ['tesla', 'spacex'], 'elon musk': ['tesla'],
+    'cuban': [], 'mark cuban': [],
+    'dimon': [], 'jamie dimon': [],
+    'armstrong': ['coinbase'], 'brian armstrong': ['coinbase'],
+    'su': ['amd'], 'lisa su': ['amd'],
+    'fink': [], 'larry fink': [],
+    'wood': [], 'cathie wood': [],
+    'son': [], 'masayoshi son': [],
+    'powell': [], 'jerome powell': [],
+    'cohen': ['gamestop'], 'ryan cohen': ['gamestop'],
+    'gill': ['gamestop'], 'keith gill': ['gamestop'],
+    'dorsey': [], 'jack dorsey': [],
+    'haun': [], 'katie haun': [],
+    'iger': ['disney'], 'bob iger': ['disney'],
+    'chesky': [], 'brian chesky': [],
+    'krishna': ['ibm'], 'arvind krishna': ['ibm'],
+    'benioff': [], 'marc benioff': [],
+    'lisa su': ['amd'],
+    'nadella': ['microsoft'],
+    'pichai': ['google'],
+    'cook': ['apple'],
+    'zuckerberg': ['meta'],
+}
+
+def _find_company_for_person(person_name, found_companies, title, body_text=""):
+    """
+    Find a relevant company visual for an unknown person.
+    Priority: 1) PERSON_COMPANY_MAP, 2) companies found in story, 3) None
+    """
+    registry = _load_registry()
+    name_lower = person_name.lower()
+    
+    # Check person-to-company mapping
+    if name_lower in PERSON_COMPANY_MAP:
+        company_keys = PERSON_COMPANY_MAP[name_lower]
+        for ck in company_keys:
+            if ck in registry.get("companies", {}):
+                company = registry["companies"][ck]
+                print(f"[smart_prompts v3] Company fallback: {person_name} → {ck}")
+                return (ck, company)
+            else:
+                # Company not in registry — create a minimal entry on the fly
+                print(f"[smart_prompts v3] Company fallback (dynamic): {person_name} → {ck}")
+                return (ck, {
+                    "visual_style": f"a dark modern corporate building with gold accent lighting representing {ck}",
+                    "alt_visuals": [f"abstract gold geometric logo shape on dark navy surface representing {ck}"]
+                })
+    
+    # Check CEO_MAP in reverse
+    for company_key, person_key in CEO_MAP.items():
+        if name_lower in person_key or person_key.endswith(name_lower):
+            if company_key in registry.get("companies", {}):
+                print(f"[smart_prompts v3] CEO_MAP fallback: {person_name} → {company_key}")
+                return (company_key, registry["companies"][company_key])
+    
+    # Use any company already found in the story
+    if found_companies:
+        print(f"[smart_prompts v3] Story company fallback: {person_name} → {found_companies[0][0]}")
+        return found_companies[0]
+    
+    return None
+
 # ─── Word Boundary Matching ────────────────────────────────────
 def _word_match(pattern, text):
     return bool(re.search(rf'\b{re.escape(pattern)}\b', text, re.IGNORECASE))
@@ -135,6 +200,9 @@ KNOWN_NON_PERSON = {
     'solana', 'bitcoin', 'ethereum', 'coinbase', 'binance',
     'gamestop', 'ebay', 'oracle', 'snap', 'spirit', 'boeing',
     'starlink', 'firedancer', 'alpenglow', 'blackwell',
+    'disney', 'jpmorgan', 'goldman', 'morgan', 'blackstone',
+    'coinbase', 'robinhood', 'paypal', 'stripe', 'square',
+    'samsung', 'corning', 'intel', 'amd', 'qualcomm', 'tsmc',
 }
 
 def _detect_unknown_persons(title, found_people):
@@ -641,14 +709,35 @@ def generate_smart_prompt(title, body_text="", image_angle_from_research=""):
                     'person_name': person_name
                 })
         else:
-            # Lookup failed — fall back to SCENE, never generate random face
-            print(f"[smart_prompts v3] Lookup failed for {person_name}, falling back to SCENE")
-            scene_prompt, scene_style, scene_type = _gen_scene_prompt(found_companies, title, body_text)
-            result.update({
-                'prompt': scene_prompt, 'style': scene_style,
-                'image_type': scene_type, 'model_hint': 'scene',
-                'status': 'SCENE_FALLBACK', 'person_name': person_name
-            })
+            # Lookup failed — try company visual, then SCENE. Never random face.
+            print(f"[smart_prompts v3] Lookup failed for {person_name}")
+            
+            # Step 2: Try company visual fallback
+            company_match = _find_company_for_person(person_name, found_companies, title, body_text)
+            
+            if company_match:
+                company_key, company_data = company_match
+                visuals = company_data.get('alt_visuals', [company_data.get('visual_style', '')])
+                chosen_visual = random.choice(visuals) if visuals else 'abstract tech visualization'
+                scene_prompt = (
+                    f"{chosen_visual}, dark navy background with gold accent lighting, "
+                    f"dramatic cinematic composition, {PROMPT_NO_PEOPLE}, {PROMPT_SUFFIX}"
+                )
+                print(f"[smart_prompts v3] Using company visual: {company_key}")
+                result.update({
+                    'prompt': scene_prompt, 'style': f'company_{company_key}',
+                    'image_type': 'SCENE', 'model_hint': 'scene',
+                    'status': 'COMPANY_FALLBACK', 'person_name': person_name
+                })
+            else:
+                # Step 3: Generic scene fallback
+                print(f"[smart_prompts v3] No company found, using generic SCENE")
+                scene_prompt, scene_style, scene_type = _gen_scene_prompt(found_companies, title, body_text)
+                result.update({
+                    'prompt': scene_prompt, 'style': scene_style,
+                    'image_type': scene_type, 'model_hint': 'scene',
+                    'status': 'SCENE_FALLBACK', 'person_name': person_name
+                })
         
         return result
     
