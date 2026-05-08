@@ -2,8 +2,9 @@
   "people": {
     "tim_cook": {
       "names": ["cook", "tim cook"],
-      "appearance": "a 60-year-old man with silver hair, clean-shaven, thin build, wearing glasses",
-      "default_outfit": "dark navy suit with white dress shirt, no tie",
+      "full_name": "Tim Cook, CEO of Apple",
+      "appearance": "Tim Cook, CEO of Apple, a 63-year-old man with silver grey hair neatly combed to the side, clean-shaven, thin athletic build, rectangular glasses",
+      "default_outfit": "dark navy suit with white dress shirt, no tie, open collar",
       "default_setting": "sleek minimalist Apple-style office with curved glass walls",
       "lighting": "soft warm side lighting with cool blue backlighting",
       "mood_positive": "confident slight smile, proud expression",
@@ -12,7 +13,8 @@
     },
     "jensen_huang": {
       "names": ["huang", "jensen huang", "jensen"],
-      "appearance": "a 60-year-old Asian man with short black and grey hair wearing a black leather jacket",
+      "full_name": "Jensen Huang, CEO of Nvidia",
+      "appearance": "Jensen Huang, CEO of Nvidia, a 62-year-old Taiwanese-American man with short black and grey hair, clean-shaven, stocky athletic build, warm face",
       "default_outfit": "signature black leather jacket over black t-shirt",
       "default_setting": "high-tech stage with GPU architecture displayed behind",
       "lighting": "dramatic stage lighting with green and gold highlights",
@@ -22,18 +24,20 @@
     },
     "sam_altman": {
       "names": ["altman", "sam altman"],
-      "appearance": "a 40-year-old man with short light brown hair, clean-shaven, slim build",
+      "full_name": "Sam Altman, CEO of OpenAI",
+      "appearance": "Sam Altman, CEO of OpenAI, a 41-year-old man with short curly dark brown hair, clean-shaven, slim build, youthful face",
       "default_outfit": "grey crew neck sweater over collared shirt",
-      "default_setting": "modern minimalist tech office with warm lighting",
-      "lighting": "soft diffused golden lighting",
+      "default_setting": "modern minimalist tech office with warm lighting and crowd behind him",
+      "lighting": "soft diffused golden lighting from above",
       "mood_positive": "optimistic slight smile",
       "mood_negative": "concerned thoughtful expression",
       "mood_neutral": "calm analytical expression"
     },
     "dario_amodei": {
       "names": ["amodei", "dario amodei", "dario"],
-      "appearance": "a 40-year-old man with curly dark brown hair, glasses, medium build",
-      "default_outfit": "dark navy sweater or casual button-down",
+      "full_name": "Dario Amodei, CEO of Anthropic",
+      "appearance": "Dario Amodei, CEO of Anthropic, a 41-year-old man with thick curly dark brown hair, glasses with thin frames, medium build",
+      "default_outfit": "dark navy sweater or casual button-down shirt",
       "default_setting": "research lab with screens showing AI data",
       "lighting": "cool blue ambient light with warm golden accents",
       "mood_positive": "thoughtful smile, intellectual warmth",
@@ -42,9 +46,10 @@
     },
     "elon_musk": {
       "names": ["musk", "elon musk", "elon"],
-      "appearance": "a 55-year-old man with short dark hair, clean-shaven, athletic build",
-      "default_outfit": "black t-shirt or dark blazer",
-      "default_setting": "industrial factory floor with robotic arms",
+      "full_name": "Elon Musk, CEO of Tesla and SpaceX",
+      "appearance": "Elon Musk, CEO of Tesla and SpaceX, a 54-year-old man with receding light brown hair, clean-shaven, slightly stocky athletic build, prominent brow",
+      "default_outfit": "black t-shirt or dark casual blazer, never formal suit and tie",
+      "default_setting": "SpaceX rocket launch site at dusk or Tesla factory floor",
       "lighting": "harsh industrial lighting with golden highlights",
       "mood_positive": "smirking confident grin",
       "mood_negative": "intense stern expression, jaw clenched",
@@ -52,7 +57,8 @@
     },
     "satya_nadella": {
       "names": ["nadella", "satya nadella", "satya"],
-      "appearance": "a 55-year-old Indian man with shaved head, glasses, medium build",
+      "full_name": "Satya Nadella, CEO of Microsoft",
+      "appearance": "Satya Nadella, CEO of Microsoft, a 58-year-old Indian man with completely shaved bald head, glasses with thin dark frames, medium build",
       "default_outfit": "dark suit with no tie, open collar",
       "default_setting": "modern Microsoft campus with glass walls",
       "lighting": "soft warm lighting with blue tech accents",
@@ -62,7 +68,8 @@
     },
     "mark_zuckerberg": {
       "names": ["zuckerberg", "mark zuckerberg", "zuck"],
-      "appearance": "a 40-year-old man with short curly brown hair, clean-shaven",
+      "full_name": "Mark Zuckerberg, CEO of Meta",
+      "appearance": "Mark Zuckerberg, CEO of Meta, a 42-year-old man with short curly brown hair, clean-shaven, slim build, boyish face",
       "default_outfit": "dark navy or grey t-shirt",
       "default_setting": "Meta campus with VR headset visible in background",
       "lighting": "cool blue ambient lighting",
@@ -72,7 +79,8 @@
     },
     "sundar_pichai": {
       "names": ["pichai", "sundar pichai", "sundar"],
-      "appearance": "a 50-year-old Indian man with dark hair greying at temples, clean-shaven",
+      "full_name": "Sundar Pichai, CEO of Alphabet and Google",
+      "appearance": "Sundar Pichai, CEO of Google, a 53-year-old Indian man with dark hair greying at temples, clean-shaven, slim build",
       "default_outfit": "dark blazer over light shirt, no tie",
       "default_setting": "Google office with colorful ambient lighting",
       "lighting": "soft warm lighting with multicolor reflections",
@@ -82,7 +90,8 @@
     },
     "andy_jassy": {
       "names": ["jassy", "andy jassy"],
-      "appearance": "a 55-year-old man with curly dark hair, clean-shaven",
+      "full_name": "Andy Jassy, CEO of Amazon",
+      "appearance": "Andy Jassy, CEO of Amazon, a 57-year-old man with curly dark hair, clean-shaven, medium build",
       "default_outfit": "casual button-down shirt, sleeves rolled",
       "default_setting": "Amazon fulfillment center or AWS data center",
       "lighting": "cool industrial lighting with orange AWS accents",
@@ -92,7 +101,8 @@
     },
     "greg_abel": {
       "names": ["abel", "greg abel"],
-      "appearance": "a 60-year-old man with grey hair, clean-shaven, tall build",
+      "full_name": "Greg Abel, CEO of Berkshire Hathaway",
+      "appearance": "Greg Abel, CEO of Berkshire Hathaway, a 62-year-old man with grey hair, clean-shaven, tall build, strong jawline",
       "default_outfit": "conservative dark suit with tie",
       "default_setting": "traditional corporate boardroom with wood paneling",
       "lighting": "warm golden classic lighting",
@@ -102,7 +112,8 @@
     },
     "alex_karp": {
       "names": ["karp", "alex karp"],
-      "appearance": "a 55-year-old man with wild curly grey-white hair, thin build",
+      "full_name": "Alex Karp, CEO of Palantir",
+      "appearance": "Alex Karp, CEO of Palantir, a 57-year-old man with wild curly grey-white hair, thin build, distinctive eccentric look",
       "default_outfit": "unconventional dark outfit, sometimes with scarf",
       "default_setting": "dark high-tech surveillance operations room",
       "lighting": "dramatic harsh side lighting",
@@ -112,13 +123,124 @@
     },
     "warren_buffett": {
       "names": ["buffett", "warren buffett"],
-      "appearance": "a 95-year-old man with thin white hair, glasses, wearing a suit",
+      "full_name": "Warren Buffett, former CEO of Berkshire Hathaway",
+      "appearance": "Warren Buffett, legendary investor, a 95-year-old man with thin white hair, round glasses, gentle face",
       "default_outfit": "classic dark suit with tie",
       "default_setting": "simple office with Omaha skyline behind",
       "lighting": "warm soft golden lighting",
       "mood_positive": "warm grandfatherly smile",
       "mood_negative": "concerned furrowed brow",
       "mood_neutral": "wise thoughtful expression"
+    },
+    "michael_saylor": {
+      "names": ["saylor", "michael saylor"],
+      "full_name": "Michael Saylor, Executive Chairman of Strategy (MicroStrategy)",
+      "appearance": "Michael Saylor, CEO of MicroStrategy, a tall lean man in his late 50s with dark slicked-back hair brushed straight back, strong angular jawline, clean-shaven, intense dark eyes",
+      "default_outfit": "dark navy suit with white dress shirt, no tie",
+      "default_setting": "dark trading floor with multiple screens showing Bitcoin charts",
+      "lighting": "dramatic blue and gold screen glow on face",
+      "mood_positive": "intense confident stare, conviction in eyes",
+      "mood_negative": "stern serious expression, jaw clenched, defiant",
+      "mood_neutral": "stoic composed expression, arms crossed"
+    },
+    "brian_armstrong": {
+      "names": ["armstrong", "brian armstrong"],
+      "full_name": "Brian Armstrong, CEO of Coinbase",
+      "appearance": "Brian Armstrong, CEO of Coinbase, a man in his early 40s, bald shaved head, clean-shaven, athletic build",
+      "default_outfit": "dark navy quarter-zip pullover over dark t-shirt",
+      "default_setting": "modern tech office with city skyline through floor-to-ceiling windows",
+      "lighting": "warm golden side lighting with cool blue ambient",
+      "mood_positive": "calm confident smile",
+      "mood_negative": "serious composed expression, cold gaze",
+      "mood_neutral": "neutral composed expression, arms crossed"
+    },
+    "mark_cuban": {
+      "names": ["cuban", "mark cuban"],
+      "full_name": "Mark Cuban, billionaire investor",
+      "appearance": "Mark Cuban, billionaire investor, a man in his late 60s with thick dark brown hair slightly messy, clean-shaven, athletic build",
+      "default_outfit": "dark navy blazer over a black t-shirt, casual",
+      "default_setting": "modern office with city lights visible through windows",
+      "lighting": "dramatic golden side lighting",
+      "mood_positive": "energetic confident smile",
+      "mood_negative": "serious intense expression with furrowed brow",
+      "mood_neutral": "calm composed expression, arms crossed"
+    },
+    "jamie_dimon": {
+      "names": ["dimon", "jamie dimon"],
+      "full_name": "Jamie Dimon, CEO of JPMorgan Chase",
+      "appearance": "Jamie Dimon, CEO of JPMorgan Chase, a 70-year-old man with silver grey hair combed back, clean-shaven, athletic build, strong jawline",
+      "default_outfit": "dark navy suit with white shirt and blue tie",
+      "default_setting": "Wall Street executive office with dark wood and city view",
+      "lighting": "warm classic golden lighting",
+      "mood_positive": "measured confident smile",
+      "mood_negative": "stern commanding expression",
+      "mood_neutral": "authoritative composed gaze"
+    },
+    "lisa_su": {
+      "names": ["su", "lisa su"],
+      "full_name": "Lisa Su, CEO of AMD",
+      "appearance": "Lisa Su, CEO of AMD, a 55-year-old Taiwanese-American woman with straight dark black hair to shoulders, slim build",
+      "default_outfit": "dark blazer over dark top, professional but modern",
+      "default_setting": "semiconductor lab or data center with server racks",
+      "lighting": "cool blue tech lighting with warm highlights",
+      "mood_positive": "confident warm smile",
+      "mood_negative": "focused determined expression",
+      "mood_neutral": "calm professional expression"
+    },
+    "ryan_cohen": {
+      "names": ["cohen", "ryan cohen"],
+      "full_name": "Ryan Cohen, CEO of GameStop",
+      "appearance": "Ryan Cohen, CEO of GameStop, a man in his late 30s with dark curly hair, light stubble, medium build, youthful face",
+      "default_outfit": "casual dark shirt or blazer, no tie",
+      "default_setting": "GameStop retail store or modern office",
+      "lighting": "warm ambient lighting with neon accents",
+      "mood_positive": "casual confident smirk",
+      "mood_negative": "serious focused expression",
+      "mood_neutral": "calm measured gaze"
+    },
+    "bob_iger": {
+      "names": ["iger", "bob iger"],
+      "full_name": "Bob Iger, CEO of Disney",
+      "appearance": "Bob Iger, CEO of Disney, a 74-year-old man with silver grey hair neatly styled, clean-shaven, tall slim build, polished look",
+      "default_outfit": "dark tailored suit with open collar white shirt",
+      "default_setting": "executive office or media event stage",
+      "lighting": "soft warm lighting, classic Hollywood feel",
+      "mood_positive": "charming diplomatic smile",
+      "mood_negative": "measured serious expression",
+      "mood_neutral": "composed executive presence"
+    },
+    "larry_fink": {
+      "names": ["fink", "larry fink"],
+      "full_name": "Larry Fink, CEO of BlackRock",
+      "appearance": "Larry Fink, CEO of BlackRock, a 73-year-old man with grey hair, glasses, medium build",
+      "default_outfit": "dark conservative suit with tie",
+      "default_setting": "Wall Street office with financial data screens",
+      "lighting": "warm classic executive lighting",
+      "mood_positive": "measured confident smile",
+      "mood_negative": "stern serious expression",
+      "mood_neutral": "authoritative composed gaze"
+    },
+    "jerome_powell": {
+      "names": ["powell", "jerome powell"],
+      "full_name": "Jerome Powell, Chair of the Federal Reserve",
+      "appearance": "Jerome Powell, Federal Reserve Chair, a 73-year-old man with silver grey hair parted to the side, clean-shaven, tall build",
+      "default_outfit": "dark suit with blue or red tie",
+      "default_setting": "Federal Reserve press conference podium with blue curtain behind",
+      "lighting": "bright press conference lighting with warm tones",
+      "mood_positive": "measured reassuring expression",
+      "mood_negative": "concerned cautious expression, furrowed brow",
+      "mood_neutral": "steady composed expression"
+    },
+    "masayoshi_son": {
+      "names": ["son", "masayoshi son", "masa"],
+      "full_name": "Masayoshi Son, CEO of SoftBank",
+      "appearance": "Masayoshi Son, CEO of SoftBank, a 67-year-old Japanese man with thinning dark hair, glasses, medium build",
+      "default_outfit": "dark suit with white shirt, no tie",
+      "default_setting": "high-tech presentation stage with futuristic displays",
+      "lighting": "bright stage lighting with blue and white accents",
+      "mood_positive": "animated enthusiastic expression with wide gestures",
+      "mood_negative": "serious determined expression",
+      "mood_neutral": "calm analytical expression"
     }
   },
   "companies": {
@@ -136,7 +258,7 @@
     },
     "openai": {
       "names": ["openai", "chatgpt", "gpt-4", "gpt-5", "dall-e"],
-      "visual_style": "golden cursor/spiral on dark marble surface",
+      "visual_style": "golden cursor spiral on dark marble surface",
       "alt_visuals": ["abstract golden spiral on black surface", "gold AI brain outline on dark background"],
       "avoid": "actual OpenAI logo"
     },
@@ -166,7 +288,7 @@
     },
     "microsoft": {
       "names": ["microsoft", "msft", "azure", "copilot", "windows"],
-      "visual_style": "blue and gold grid pattern on dark surface, tech infrastructure",
+      "visual_style": "blue and gold grid pattern on dark surface tech infrastructure",
       "alt_visuals": ["cloud computing visualization with gold and blue nodes on dark background", "abstract four-quadrant shape in gold on dark surface"],
       "avoid": "actual Microsoft logo"
     },
@@ -203,8 +325,44 @@
     "palantir": {
       "names": ["palantir", "pltr"],
       "visual_style": "dark surveillance operations room with gold data streams on screens",
-      "alt_visuals": ["golden crystal ball (palantir) on dark surface with data reflections", "gold wireframe globe with data points on dark background"],
+      "alt_visuals": ["golden crystal ball on dark surface with data reflections", "gold wireframe globe with data points on dark background"],
       "avoid": "actual Palantir logo"
+    },
+    "coinbase": {
+      "names": ["coinbase", "coin"],
+      "visual_style": "gold cryptocurrency exchange terminal on dark surface with trading charts",
+      "alt_visuals": ["abstract gold circular coin outline on dark blue background", "dark trading desk with gold crypto charts on multiple screens"],
+      "avoid": "actual Coinbase logo"
+    },
+    "gamestop": {
+      "names": ["gamestop", "gme"],
+      "visual_style": "neon-lit gaming store facade at night with gold and red glow",
+      "alt_visuals": ["gold game controller on dark reflective surface", "neon store sign glowing in dark urban setting"],
+      "avoid": "actual GameStop logo"
+    },
+    "disney": {
+      "names": ["disney", "dis", "disney+"],
+      "visual_style": "fairy tale castle silhouette against dark sky with golden light rays behind",
+      "alt_visuals": ["gold castle towers on dark reflective water surface at sunset", "dark cinematic theater with gold spotlight"],
+      "avoid": "actual Disney logo"
+    },
+    "amd": {
+      "names": ["amd", "radeon", "ryzen", "epyc"],
+      "visual_style": "red and gold semiconductor chip on dark circuit board",
+      "alt_visuals": ["dark data center with red LED server racks and gold accents", "gold processor on dark surface with red circuit traces"],
+      "avoid": "actual AMD logo"
+    },
+    "spacex": {
+      "names": ["spacex", "starlink", "falcon", "starship"],
+      "visual_style": "rocket silhouette against dark sky with golden engine glow at base",
+      "alt_visuals": ["dark launch pad at dusk with gold light trails from rocket", "satellite constellation dots in gold on dark space background"],
+      "avoid": "actual SpaceX logo"
+    },
+    "jpmorgan": {
+      "names": ["jpmorgan", "jpm", "chase", "jp morgan"],
+      "visual_style": "imposing dark Wall Street bank facade with gold light from windows",
+      "alt_visuals": ["dark marble trading floor with gold data tickers", "gold Wall Street bull silhouette on dark background"],
+      "avoid": "actual JPMorgan logo"
     }
   }
 }
