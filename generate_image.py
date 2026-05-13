@@ -1,9 +1,9 @@
-# TLW v18.3
-# Upgrades from v18.2:
-# - Dual-model: Nano Banana 2 for portraits, Grok Imagine for scenes
-# - CEO-company mapping: Apple→Cook, Amazon→Jassy, Berkshire→Abel, etc.
-# - Instagram fix: better error logging, returns True for reminders
-# - Both portrait models are optional — falls back gracefully
+# TLW v18.4
+# Upgrades from v18.3:
+# - Buffer Assets Input Migration: { images: [...] } → [{ image: {...} }]
+# - Buffer document assets: { documents: [...] } → [{ document: {...} }]
+# - Error logging added to post_to_buffer for X/LinkedIn debugging
+# - _estimate_baseline fix: handles non-numeric stat hooks (NOPE., SOLANA, etc.)
 import os, re, time, random, requests, base64, json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
@@ -291,7 +291,7 @@ def carousel_allowed():
     if not same_day: return True
     return count < CAROUSEL_MAX_DAILY
 
-print(f"=== TLW v18.3 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
+print(f"=== TLW v18.4 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
 
 def x_char_count(text):
     t = re.sub(r'https?://\S+|[\w]+\.com\S*', 'X'*23, text)
@@ -313,6 +313,8 @@ def _build_linkedin_from_blob(blob):
 
 def _estimate_baseline(stat_hook):
     if not stat_hook: return "0"
+    # v18.4 FIX: bail early if no digits at all (handles NOPE., SOLANA, ZERO, etc.)
+    if not re.search(r'\d', stat_hook): return "0"
     m = re.search(r'([+-]?)([\d.]+)%', stat_hook)
     if m:
         sign, val = m.group(1), float(m.group(2))
@@ -320,9 +322,9 @@ def _estimate_baseline(stat_hook):
         elif sign == '-': baseline = val + 30
         else: baseline = max(1, val * 0.5)
         return f"{baseline:.0f}%"
-    m = re.search(r'\$?([\d.]+)([BMKT]?)', stat_hook)
+    m = re.search(r'\$?(\d[\d.]*)([ BMKT]?)', stat_hook)
     if m:
-        val, suffix = float(m.group(1)), m.group(2)
+        val, suffix = float(m.group(1)), m.group(2).strip()
         return f"${max(0.1, val * 0.4):.1f}{suffix}"
     m = re.search(r'([\d,]+)', stat_hook)
     if m: return f"{int(float(m.group(1).replace(',','')) * 0.3):,}"
@@ -735,7 +737,7 @@ def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_
         draw_text_shadow(draw, (PAD, y), line, body_f, BODY_GREY, offset=2); y += bd_lh + 10
     draw_footer(draw)
     img.save("card.png", "PNG")
-    print("Card saved (photo mode \u2014 v18.3)")
+    print("Card saved (photo mode \u2014 v18.4)")
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1, h2, support_lines=None, hook=""):
@@ -916,21 +918,24 @@ def push_to_github(image_path, token, repo, file_path):
     put_r=requests.put(f"https://api.github.com/repos/{repo}/contents/{file_path}",headers=headers,json=payload,timeout=30)
     print(f"GitHub push: {put_r.status_code}"); return put_r.status_code in [200,201]
 
-# ── BUFFER ────────────────────────────────────────────────────────
+# ── BUFFER (v18.4: migrated to new assets array format) ───────────
 def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform="", retries=2):
     print(f"Posting carousel to Buffer {platform} ({len(image_urls)} slides)..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
-    imgs_gql = ", ".join([f'{{ url: "{u}" }}' for u in image_urls])
-    query = ('mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: { images: [%s] }\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}') % (safe_text, cid, imgs_gql)
+    # v18.4: new assets format — array of { image: { url } }
+    imgs_gql = ", ".join([f'{{ image: {{ url: "{u}" }} }}' for u in image_urls])
+    query = ('mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: [%s]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}') % (safe_text, cid, imgs_gql)
     for attempt in range(retries + 1):
         try:
             r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
             data = r.json(); post_data = data.get("data",{}).get("createPost",{})
             if "errors" in data:
+                print(f"Buffer {platform} carousel GraphQL errors: {data['errors']}")
                 if attempt < retries: time.sleep(5); continue
                 return False
             if "message" in post_data and "post" not in post_data:
+                print(f"Buffer {platform} carousel mutation error: {post_data.get('message','unknown')}")
                 if attempt < retries: time.sleep(5); continue
                 return False
             return r.status_code == 200
@@ -943,15 +948,18 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, thumbnail_u
     print(f"Posting LinkedIn PDF document..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip(); thumb = thumbnail_url or doc_url
-    query = ('mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: { documents: [{ url: "%s", title: "The Ledger Wire", thumbnailUrl: "%s" }] }\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}') % (safe_text, cid, doc_url, thumb)
+    # v18.4: new assets format — array of { document: { url, title, thumbnailUrl } }
+    query = ('mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: [{ document: { url: "%s", title: "The Ledger Wire", thumbnailUrl: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}') % (safe_text, cid, doc_url, thumb)
     for attempt in range(retries + 1):
         try:
             r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
             data = r.json(); post_data = data.get("data",{}).get("createPost",{})
             if "errors" in data:
+                print(f"Buffer LinkedIn doc GraphQL errors: {data['errors']}")
                 if attempt < retries: time.sleep(5); continue
                 return False
             if "message" in post_data and "post" not in post_data:
+                print(f"Buffer LinkedIn doc mutation error: {post_data.get('message','unknown')}")
                 if attempt < retries: time.sleep(5); continue
                 return False
             return r.status_code == 200
@@ -964,7 +972,8 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
     print(f"Posting to Buffer Instagram..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
-    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: { images: [{ url: "%s" }] }\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
+    # v18.4: new assets format — array of { image: { url } }
+    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: [{ image: { url: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
     for attempt in range(retries + 1):
         try:
             r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
@@ -993,15 +1002,18 @@ def post_to_buffer(post_text, image_url, channel_id, api_key, platform="", retri
     print(f"Posting to Buffer {platform}..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
-    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: { images: [{ url: "%s" }] }\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
+    # v18.4: new assets format — array of { image: { url } }
+    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: [{ image: { url: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
     for attempt in range(retries+1):
         try:
             r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
             data = r.json(); post_data = data.get("data",{}).get("createPost",{})
             if "errors" in data:
+                print(f"Buffer {platform} GraphQL errors: {data['errors']}")
                 if attempt < retries: time.sleep(5); continue
                 return False
             if "message" in post_data and "post" not in post_data:
+                print(f"Buffer {platform} mutation error: {post_data.get('message','unknown')}")
                 if attempt < retries: time.sleep(5); continue
                 return False
             return r.status_code == 200
