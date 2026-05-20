@@ -1,0 +1,27 @@
+name: Post to Instagram
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_url:
+        description: 'GitHub raw URL of the card image'
+        required: true
+      caption:
+        description: 'Instagram caption'
+        required: true
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - run: |
+          python post_ig.py \
+            --image-url "${{ github.event.inputs.image_url }}" \
+            --caption "${{ github.event.inputs.caption }}" \
+            --buffer-key "${{ secrets.BUFFER_API_KEY }}" \
+            --profile-ig "${{ secrets.BUFFER_PROFILE_IG }}"
