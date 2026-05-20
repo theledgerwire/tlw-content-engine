@@ -974,7 +974,7 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
     # v18.4: new assets format — array of { image: { url } }
-    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    metadata: { instagram: { postType: "post" } },\n    assets: [{ image: { url: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
+    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    metadata: { instagram: { type: post, shouldShareToFeed: true } },\n    assets: [{ image: { url: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
     for attempt in range(retries + 1):
         try:
             r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
