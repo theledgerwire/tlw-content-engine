@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 """
-TLW Instagram Manual Poster v2
-Uses metadata.instagram.postType (correct Buffer GraphQL field)
-
-Usage:
-  python post_ig.py --image-url "https://raw.githubusercontent.com/..." --caption "Your caption here"
+TLW Instagram Manual Poster v3
+metadata.instagram.type: post + shouldShareToFeed: true
 """
-
 import os, sys, json, time, requests, argparse
 
 BUFFER_API_KEY = os.environ.get("BUFFER_API_KEY", "")
@@ -31,7 +27,8 @@ def post_to_instagram(caption, image_url, channel_id, api_key, retries=2):
     mode: addToQueue,
     metadata: {
       instagram: {
-        postType: "post"
+        type: post,
+        shouldShareToFeed: true
       }
     },
     assets: [{ image: { url: "%s" } }]
@@ -88,7 +85,6 @@ def post_to_instagram(caption, image_url, channel_id, api_key, retries=2):
 
     print("  FAILED after all retries")
     return False
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Post to Instagram via Buffer")
