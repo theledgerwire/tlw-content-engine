@@ -431,17 +431,15 @@ def call_claude_weekly(headlines, card_type):
         print(f"Claude weekly exception: {e}"); return None
 
 # ── PHOTO PROCESSING ──────────────────────────────────────────────
-def process_photo(img_data, style=None, target_w=None, target_h=None):
+def process_photo(img_data, style=None):
     from PIL import ImageEnhance
     if style is None: style = ACTIVE_STYLE
-    tw = target_w or W
-    th = target_h or H
     photo = Image.open(BytesIO(img_data)).convert("RGB")
-    pw, ph = photo.size; scale = max(tw/pw, th/ph)
+    pw, ph = photo.size; scale = max(W/pw, H/ph)
     nw, nh = int(pw*scale), int(ph*scale)
     photo = photo.resize((nw, nh), Image.LANCZOS)
-    left, top = (nw-tw)//2, (nh-th)//2
-    photo = photo.crop((left, top, left+tw, top+th))
+    left, top = (nw-W)//2, (nh-H)//2
+    photo = photo.crop((left, top, left+W, top+H))
     photo = ImageEnhance.Color(photo).enhance(min(style["saturation"], 1.05))
     return photo
 
@@ -625,18 +623,16 @@ def get_photo(keyword, story_context="", used_images=None):
     print("--- All photo sources failed \u2014 navy card ---"); return None, None
 
 # ── GRADIENT ──────────────────────────────────────────────────────
-def apply_gradient(img, start=0.40, style=None, gw=None, gh=None):
+def apply_gradient(img, start=0.40, style=None):
     if style is None: style = ACTIVE_STYLE
     op = style["gradient_opacity"]
     overlay_rgb = (10, 22, 40)
-    _gw = gw or img.width
-    _gh = gh or img.height
-    grad = Image.new("RGBA",(_gw,_gh),(0,0,0,0)); gd = ImageDraw.Draw(grad)
-    for y in range(int(_gh * start), _gh):
-        t = float(y - _gh * start) / float(_gh * (1 - start))
+    grad = Image.new("RGBA",(W,H),(0,0,0,0)); gd = ImageDraw.Draw(grad)
+    for y in range(int(H * start), H):
+        t = float(y - H * start) / float(H * (1 - start))
         t = max(0.0, min(1.0, t))
         a = int(255 * min(1.0, t ** 0.7) * op)
-        gd.line([(0, y), (_gw, y)], fill=(*overlay_rgb, a))
+        gd.line([(0, y), (W, y)], fill=(*overlay_rgb, a))
     return Image.alpha_composite(img.convert("RGBA"), grad).convert("RGB")
 
 def wrap_text(draw, text, font, max_width):
@@ -650,19 +646,17 @@ def wrap_text(draw, text, font, max_width):
     if current: lines.append(current)
     return lines
 
-def draw_footer(draw, fw=None, fh=None):
+def draw_footer(draw):
     PAD = 56
-    _fw = fw or W
-    _fh = fh or H
-    draw.rectangle([(0, _fh-72), (_fw, _fh)], fill=GOLD)
+    draw.rectangle([(0, H-72), (W, H)], fill=GOLD)
     url_f = ImageFont.truetype(FONT_BOLD, 19)
     tag_f = ImageFont.truetype(FONT_REG, 19)
     btb = draw.textbbox((0,0), "THE LEDGER WIRE", font=url_f)
     utb = draw.textbbox((0,0), "theledgerwire.com", font=tag_f)
     uw = utb[2] - utb[0]
-    fy = _fh - 72 + (72 - btb[3]) // 2
+    fy = H - 72 + (72 - btb[3]) // 2
     draw.text((PAD, fy), "THE LEDGER WIRE", font=url_f, fill=NAVY)
-    draw.text((_fw - PAD - uw, fy), "theledgerwire.com", font=tag_f, fill=NAVY)
+    draw.text((W - PAD - uw, fy), "theledgerwire.com", font=tag_f, fill=NAVY)
 
 def draw_text_shadow(draw, pos, text, font, fill, shadow_color=(0,0,0), offset=3, blur_passes=2):
     x, y = pos
@@ -695,31 +689,28 @@ def get_source_label(story_title=""):
     return ""
 
 # ── CARD: PHOTO ───────────────────────────────────────────────────
-def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_lines=None, card_w=None, card_h=None, save_path="card.png"):
-    """v18.6: 160pt H1, 52pt H2, 28pt body. Supports square + portrait."""
-    cW = card_w or img.width
-    cH = card_h or img.height
+def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_lines=None):
+    """v18.2: 160pt H1 (1 line), 52pt H2 (2 lines), 28pt body. Fixed sizes."""
     draw = ImageDraw.Draw(img)
-    PAD, FTR_H = 80, 72
-    MTW = cW - 80 - 60
+    PAD, MTW, FTR_H = 50, W - 50 - 40, 72
     mark_f = ImageFont.truetype(FONT_BOLD, 22)
     badge_f = ImageFont.truetype(FONT_BOLD, 18)
     h1_f = ImageFont.truetype(FONT_BOLD, 160)
     h2_f = ImageFont.truetype(FONT_MED, 52)
     body_f = ImageFont.truetype(FONT_MED, 28)
 
-    draw.rectangle([(0, 0), (14, cH)], fill=GOLD)
-    draw_text_shadow(draw, (50, 34), "THE LEDGER WIRE", mark_f, WHITE, offset=2)
-    mb = draw.textbbox((50, 34), "THE LEDGER WIRE", font=mark_f)
+    draw.rectangle([(0, 0), (10, H)], fill=GOLD)
+    draw_text_shadow(draw, (40, 34), "THE LEDGER WIRE", mark_f, WHITE, offset=2)
+    mb = draw.textbbox((40, 34), "THE LEDGER WIRE", font=mark_f)
     mark_w = mb[2] - mb[0]
-    draw.rectangle([(50, mb[3]+4), (50+mark_w, mb[3]+7)], fill=GOLD)
+    draw.rectangle([(40, mb[3]+4), (40+mark_w, mb[3]+7)], fill=GOLD)
 
     if source:
         spx, spy = 14, 6
         sb = draw.textbbox((0,0), source, font=badge_f)
         stw, sth = sb[2]-sb[0], sb[3]-sb[1]
         bw2, bh2 = stw+spx*2, sth+spy*2+8
-        bx2, by2 = cW-40-bw2, 28
+        bx2, by2 = W-40-bw2, 28
         draw.rounded_rectangle([(bx2,by2),(bx2+bw2,by2+bh2)], radius=4, outline=GOLD, width=2)
         draw.text((bx2+spx, by2+spy+1), source, font=badge_f, fill=GOLD)
 
@@ -733,7 +724,7 @@ def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_
     h2_lh = draw.textbbox((0,0), "Ag", font=h2_f)[3]
     bd_lh = draw.textbbox((0,0), "Ag", font=body_f)[3]
 
-    footer_top = cH - FTR_H
+    footer_top = H - FTR_H
     body_block_h = len(body_texts) * (bd_lh + 10) if body_texts else 0
     body_y = footer_top - 28 - body_block_h
     rule_y = body_y - 22
@@ -915,20 +906,105 @@ def generate_carousel_pdf(output_path, h1, h2, hook, stat_number, stat_label, st
     print(f"PDF carousel saved: {output_path}"); return True
 
 # ── GENERATE CARD ─────────────────────────────────────────────────
-def generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None,story_title="",story_summary="",make_portrait=True):
+
+def build_portrait_card(img_url, stat_hook, sub_line, body_lines, source_tag="", save_path="card_portrait.png"):
+    """Builds 1080x1350 portrait card for Instagram. Independent from square card builder."""
+    try:
+        PW, PH = 1080, 1350
+        PAD = 50
+        
+        img_data = requests.get(img_url, timeout=30).content
+        hero = Image.open(BytesIO(img_data)).convert("RGBA")
+        ratio = max(PW / hero.width, PH / hero.height)
+        nw, nh = int(hero.width * ratio), int(hero.height * ratio)
+        hero = hero.resize((nw, nh), Image.LANCZOS)
+        left, top = (nw - PW) // 2, (nh - PH) // 2
+        hero = hero.crop((left, top, left + PW, top + PH))
+        
+        card = Image.new("RGBA", (PW, PH), NAVY)
+        card.paste(hero, (0, 0))
+        
+        # Gradient overlay
+        overlay = Image.new("RGBA", (PW, PH), (0, 0, 0, 0))
+        odraw = ImageDraw.Draw(overlay)
+        grad_start = int(PH * 0.35)
+        for y in range(grad_start, PH):
+            progress = (y - grad_start) / (PH - grad_start)
+            eased = progress ** 0.7
+            alpha = int(eased * 240)
+            odraw.rectangle([(0, y), (PW, y)], fill=(10, 22, 40, alpha))
+        card = Image.alpha_composite(card, overlay)
+        draw = ImageDraw.Draw(card)
+        
+        # Gold left bar
+        draw.rectangle([(0, 0), (10, PH)], fill=GOLD)
+        
+        # Header
+        header_font = ImageFont.truetype(FONT_BOLD, 28)
+        draw.text((40, 30), "THE LEDGER WIRE", font=header_font, fill=GOLD)
+        
+        # Source badge
+        if source_tag:
+            badge_font = ImageFont.truetype(FONT_BOLD, 20)
+            bbox = draw.textbbox((0, 0), source_tag, font=badge_font)
+            bw = bbox[2] - bbox[0]
+            bh = bbox[3] - bbox[1]
+            bx = PW - bw - 60
+            by = 32
+            px, py = 16, 8
+            draw.rounded_rectangle([(bx-px, by-py), (bx+bw+px, by+bh+py)], radius=4, outline=GOLD, width=2)
+            draw.text((bx, by), source_tag, font=badge_font, fill=GOLD)
+        
+        # Footer
+        footer_h = 72
+        footer_y = PH - footer_h
+        draw.rectangle([(0, footer_y), (PW, PH)], fill=GOLD)
+        footer_font = ImageFont.truetype(FONT_BOLD, 22)
+        draw.text((40, footer_y + 22), "THE LEDGER WIRE", font=footer_font, fill=NAVY)
+        url_font = ImageFont.truetype(FONT_MED, 20)
+        url_bbox = draw.textbbox((0, 0), "theledgerwire.com", font=url_font)
+        url_w = url_bbox[2] - url_bbox[0]
+        draw.text((PW - url_w - 40, footer_y + 24), "theledgerwire.com", font=url_font, fill=NAVY)
+        
+        # Body lines (bottom up from footer)
+        body_font = ImageFont.truetype(FONT_MED, 30)
+        body_y = footer_y - 40
+        for line in reversed(body_lines[:2]):
+            body_y -= 42
+            draw.text((PAD, body_y), line, font=body_font, fill=BODY_GREY)
+        
+        # Gold rule
+        rule_y = body_y - 20
+        draw.rectangle([(PAD, rule_y), (PAD + 90, rule_y + 4)], fill=GOLD)
+        
+        # Sub headline
+        sub_font = ImageFont.truetype(FONT_BOLD, 48)
+        sub_y = rule_y - 65
+        draw.text((PAD, sub_y), sub_line, font=sub_font, fill=GOLD)
+        
+        # Stat hook
+        stat_font = ImageFont.truetype(FONT_BOLD, 180)
+        stat_y = sub_y - 180 - 20
+        draw.text((PAD, stat_y), stat_hook, font=stat_font, fill=GOLD)
+        
+        final = card.convert("RGB")
+        final.save(save_path, quality=95)
+        print(f"Portrait card saved: {save_path}")
+        return True
+    except Exception as e:
+        print(f"Portrait card builder failed: {e}")
+        return False
+\ndef generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None,story_title="",story_summary=""):
     if used_images is None: used_images={}
     company = extract_company(h2, story_title); source = get_source_label(story_title)
     photo, img_url = get_photo(keyword, story_context, used_images)
     if photo:
         card_with_photo(apply_gradient(photo), h1, h2, hook, company_name=company, source=source, support_lines=support_lines)
-        # Generate portrait version for Instagram
-        if make_portrait and img_url:
-            try:
-                img_data_p = requests.get(img_url, timeout=30).content
-                photo_p = process_photo(img_data_p, target_w=W_P, target_h=H_P)
-                card_with_photo(apply_gradient(photo_p, gw=W_P, gh=H_P), h1, h2, hook, company_name=company, source=source, support_lines=support_lines, card_w=W_P, card_h=H_P, save_path="card_portrait.png")
-            except Exception as e:
-                print(f"Portrait card failed: {e} — IG will use square")
+        # Generate portrait version for Instagram (independent builder)
+        if img_url:
+            source_label = get_source_label(story_title)
+            body_lines_p = support_lines[:2] if support_lines else []
+            build_portrait_card(img_url, h1, h2, body_lines_p, source_tag=source_label)
     else: card_no_photo(h1,h2,support_lines,hook); img_url=None
     return "card.png", img_url
 
