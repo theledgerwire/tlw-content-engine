@@ -34,6 +34,8 @@ BUFFER_API_KEY    = os.environ.get("BUFFER_API_KEY", "")
 BUFFER_PROFILE_X  = os.environ.get("BUFFER_PROFILE_X", "")
 BUFFER_PROFILE_LI = os.environ.get("BUFFER_PROFILE_LI", "")
 BUFFER_PROFILE_IG = os.environ.get("BUFFER_PROFILE_IG", "")
+BUFFER_PROFILE_TT = os.environ.get("BUFFER_PROFILE_TT", "")
+BUFFER_PROFILE_YT = os.environ.get("BUFFER_PROFILE_YT", "")
 GITHUB_TOKEN      = os.environ.get("GITHUB_TOKEN", "")
 ANTHROPIC_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
 UNSPLASH_KEY      = os.environ.get("UNSPLASH_KEY", "")
@@ -1022,6 +1024,63 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
             if attempt < retries: time.sleep(5)
     return False
 
+
+def post_to_buffer_tiktok(post_text, image_url, channel_id, api_key, retries=2):
+    print(f"Posting to Buffer TikTok..."); time.sleep(3)
+    def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
+    safe_text = esc(post_text); cid = channel_id.strip()
+    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    metadata: { tiktok: { privacyLevel: PUBLIC_TO_EVERYONE } },\n    assets: [{ image: { url: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
+    for attempt in range(retries + 1):
+        try:
+            r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
+            data = r.json()
+            print(f"TikTok Buffer response: {json.dumps(data)[:300]}")
+            post_data = data.get("data",{}).get("createPost",{})
+            if "errors" in data:
+                print(f"TikTok GraphQL errors: {data['errors']}")
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if "message" in post_data and "post" not in post_data:
+                print(f"TikTok mutation error: {post_data.get('message','unknown')}")
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if post_data.get("post",{}).get("id"):
+                print(f"TikTok post created: {post_data['post']['id']}")
+                return True
+            return True
+        except Exception as e:
+            print(f"Buffer TikTok exception: {e}")
+            if attempt < retries: time.sleep(5)
+    return False
+
+def post_to_buffer_youtube(post_text, image_url, channel_id, api_key, retries=2):
+    print(f"Posting to Buffer YouTube..."); time.sleep(3)
+    def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
+    safe_text = esc(post_text); cid = channel_id.strip()
+    query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: [{ image: { url: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
+    for attempt in range(retries + 1):
+        try:
+            r = requests.post("https://api.buffer.com", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json={"query": query}, timeout=30)
+            data = r.json()
+            print(f"YouTube Buffer response: {json.dumps(data)[:300]}")
+            post_data = data.get("data",{}).get("createPost",{})
+            if "errors" in data:
+                print(f"YouTube GraphQL errors: {data['errors']}")
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if "message" in post_data and "post" not in post_data:
+                print(f"YouTube mutation error: {post_data.get('message','unknown')}")
+                if attempt < retries: time.sleep(5); continue
+                return False
+            if post_data.get("post",{}).get("id"):
+                print(f"YouTube post created: {post_data['post']['id']}")
+                return True
+            return True
+        except Exception as e:
+            print(f"Buffer YouTube exception: {e}")
+            if attempt < retries: time.sleep(5)
+    return False
+
 def post_to_buffer(post_text, image_url, channel_id, api_key, platform="", retries=2):
     print(f"Posting to Buffer {platform}..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
@@ -1063,6 +1122,8 @@ if CARD_TYPE in ["weekly_tuesday","weekly_friday"]:
             if BUFFER_PROFILE_X and x_post: post_to_buffer(x_post, RAW_URL, BUFFER_PROFILE_X, BUFFER_API_KEY, "X")
             if BUFFER_PROFILE_LI and linkedin_text: time.sleep(3); post_to_buffer(linkedin_text, RAW_URL, BUFFER_PROFILE_LI, BUFFER_API_KEY, "LinkedIn")
             if BUFFER_PROFILE_IG: time.sleep(3); post_to_buffer_instagram(linkedin_text, RAW_URL, BUFFER_PROFILE_IG, BUFFER_API_KEY)
+            if BUFFER_PROFILE_TT: time.sleep(3); post_to_buffer_tiktok(linkedin_text, RAW_URL, BUFFER_PROFILE_TT, BUFFER_API_KEY)
+            if BUFFER_PROFILE_YT: time.sleep(3); post_to_buffer_youtube(linkedin_text, RAW_URL, BUFFER_PROFILE_YT, BUFFER_API_KEY)
     exit(0)
 
 # ── NEWS FLOW ─────────────────────────────────────────────────────
@@ -1131,6 +1192,8 @@ print(f"DEBUG compare \u2014 A:'{compare_a_label}'='{compare_a_value}' | B:'{com
 
 linkedin_text = strip_urls(linkedin_text)
 ig_caption = f"{headline1}\n\n{headline2}\n\n{hook_text}\n\nFollow @theledgerwire.ai for daily AI & Finance intel.\n\n#AI #Finance #Tech #Investing #Markets #ArtificialIntelligence #StockMarket #Crypto"
+tt_caption = f"{headline1} — {headline2} {hook_text} Follow @theledgerwire for AI & Finance news. #AI #Finance #Tech #Investing #FYP #StockMarket #Crypto #BreakingNews"
+yt_caption = f"{headline1} — {headline2}\n\n{hook_text}\n\nThe Ledger Wire — AI & Finance intelligence for professionals.\n\nSubscribe for daily market updates.\n\n#AI #Finance #Tech #Investing #Markets"
 
 if x_char_count(tweet_text) > 280: print("ERROR: Tweet over 280 \u2014 exiting"); exit(1)
 used_images = load_used_images()
@@ -1197,6 +1260,20 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
             print("Instagram: SUCCESS" if ok_ig else "Instagram: FAILED")
         else:
             print("Instagram: skipped \u2014 add BUFFER_PROFILE_IG to GitHub secrets")
+
+        if BUFFER_PROFILE_TT:
+            time.sleep(3)
+            ok_tt = post_to_buffer_tiktok(tt_caption, RAW_URL, BUFFER_PROFILE_TT, BUFFER_API_KEY)
+            print("TikTok: SUCCESS" if ok_tt else "TikTok: FAILED")
+        else:
+            print("TikTok: skipped \u2014 add BUFFER_PROFILE_TT to GitHub secrets")
+
+        if BUFFER_PROFILE_YT:
+            time.sleep(3)
+            ok_yt = post_to_buffer_youtube(yt_caption, RAW_URL, BUFFER_PROFILE_YT, BUFFER_API_KEY)
+            print("YouTube: SUCCESS" if ok_yt else "YouTube: FAILED")
+        else:
+            print("YouTube: skipped \u2014 add BUFFER_PROFILE_YT to GitHub secrets")
 
         save_used_story(story_hash(STORY_TITLE), STORY_TITLE)
         print(f"Story hash + title saved: {story_hash(STORY_TITLE)}")
