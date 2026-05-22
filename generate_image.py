@@ -994,7 +994,8 @@ def build_portrait_card(img_url, stat_hook, sub_line, body_lines, source_tag="",
     except Exception as e:
         print(f"Portrait card builder failed: {e}")
         return False
-\ndef generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None,story_title="",story_summary=""):
+
+def generate_news_card(h1,h2,keyword,support_lines=None,hook="",story_context="",used_images=None,story_title="",story_summary=""):
     if used_images is None: used_images={}
     company = extract_company(h2, story_title); source = get_source_label(story_title)
     photo, img_url = get_photo(keyword, story_context, used_images)
