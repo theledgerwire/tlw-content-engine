@@ -26,7 +26,7 @@ VISUAL_REGISTRY = {
 
     # ── BIG TECH ──────────────────────────────────────────────────
     "nvidia": {
-        "visual": "Dramatic closeup portrait of Jensen Huang, silver-gray hair, glasses, black leather jacket, confident intense expression, Nvidia green logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Jensen Huang, CEO of Nvidia, Nvidia green logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["nvidia", "nvda", "jensen huang", "jensen", "gpu", "blackwell", "vera rubin", "grace"],
@@ -38,25 +38,25 @@ VISUAL_REGISTRY = {
         "triggers": ["apple", "aapl", "tim cook", "iphone", "wwdc", "siri", "vision pro"],
     },
     "google": {
-        "visual": "Dramatic closeup portrait of Sundar Pichai, dark hair, glasses, calm composed expression, dark blazer, Google colored G logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Sundar Pichai, CEO of Google, Google colored G logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["google", "googl", "alphabet", "sundar pichai", "sundar", "gemini", "deepmind", "android", "antigravity"],
     },
     "microsoft": {
-        "visual": "Dramatic closeup portrait of Satya Nadella, bald head, glasses, warm determined expression, dark suit, Microsoft four-square logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Satya Nadella, CEO of Microsoft, Microsoft four-square logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["microsoft", "msft", "satya nadella", "nadella", "azure", "copilot", "windows"],
     },
     "meta": {
-        "visual": "Dramatic closeup portrait of Mark Zuckerberg, short brown hair, intense focused expression, gray t-shirt, Meta infinity loop logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Mark Zuckerberg, CEO of Meta, Meta infinity loop logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["meta", "zuckerberg", "facebook", "instagram", "whatsapp", "threads", "reality labs"],
     },
     "amazon": {
-        "visual": "Dramatic closeup portrait of Andy Jassy, curly dark hair, intense expression, button-down shirt, Amazon smile logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Andy Jassy, CEO of Amazon, Amazon smile logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["amazon", "amzn", "aws", "andy jassy", "bezos", "prime"],
@@ -70,19 +70,19 @@ VISUAL_REGISTRY = {
 
     # ── AI COMPANIES ──────────────────────────────────────────────
     "openai": {
-        "visual": "Dramatic closeup portrait of Sam Altman, brown curly hair, calm determined expression, dark blazer, OpenAI hexagonal logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Sam Altman, CEO of OpenAI, OpenAI hexagonal logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["openai", "sam altman", "altman", "chatgpt", "gpt-5", "gpt-6", "dall-e"],
     },
     "anthropic": {
-        "visual": "Dramatic closeup portrait of Dario Amodei, dark curly hair, thoughtful expression, casual shirt, Anthropic logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Dario Amodei, CEO of Anthropic, Anthropic logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["anthropic", "dario amodei", "amodei", "claude", "claude mythos"],
     },
     "xai": {
-        "visual": "Dramatic closeup portrait of Elon Musk, short dark hair, stern intense expression, dark crew neck, xAI logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Elon Musk, CEO of xAI and Tesla, xAI logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["xai", "grok ai", "elon musk ai"],
@@ -108,7 +108,7 @@ VISUAL_REGISTRY = {
         "triggers": ["intel", "intc", "pat gelsinger"],
     },
     "arm": {
-        "visual": "Dramatic closeup portrait of Rene Haas, professional expression, dark blazer, Arm logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Rene Haas, CEO of Arm Holdings, Arm logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["arm holdings", "arm ipo", "rene haas"],
@@ -132,7 +132,7 @@ VISUAL_REGISTRY = {
         "triggers": ["samsung chip", "samsung semiconductor", "samsung foundry", "samsung factory", "samsung workers"],
     },
     "marvell": {
-        "visual": "Dramatic closeup portrait of Matt Murphy, confident expression, dark suit, Marvell Technology logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Matt Murphy, CEO of Marvell Technology, Marvell Technology logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["marvell", "matt murphy"],
@@ -146,7 +146,7 @@ VISUAL_REGISTRY = {
 
     # ── FINANCE / BANKING ─────────────────────────────────────────
     "jpmorgan": {
-        "visual": "Dramatic closeup portrait of Jamie Dimon, silver hair, strong jaw, commanding expression, power suit with tie, JPMorgan Chase blue logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Jamie Dimon, CEO of JPMorgan Chase, JPMorgan Chase blue logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["jpmorgan", "jp morgan", "jamie dimon", "dimon", "chase"],
@@ -158,7 +158,7 @@ VISUAL_REGISTRY = {
         "triggers": ["goldman sachs", "goldman", "david solomon"],
     },
     "blackrock": {
-        "visual": "Dramatic closeup portrait of Larry Fink, gray hair, glasses, serious expression, dark suit, BlackRock logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Larry Fink, CEO of BlackRock, BlackRock logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["blackrock", "larry fink", "fink"],
@@ -172,7 +172,7 @@ VISUAL_REGISTRY = {
 
     # ── ENTERPRISE / SAAS ─────────────────────────────────────────
     "salesforce": {
-        "visual": "Dramatic closeup portrait of Marc Benioff, gray beard, glasses, confident expression, blazer, Salesforce cloud logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Marc Benioff, CEO of Salesforce, Salesforce cloud logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["salesforce", "marc benioff", "benioff", "agentforce", "dreamforce"],
@@ -184,7 +184,7 @@ VISUAL_REGISTRY = {
         "triggers": ["snowflake", "snow"],
     },
     "oracle": {
-        "visual": "Dramatic closeup portrait of Larry Ellison, gray hair, intense expression, dark blazer, Oracle red logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Larry Ellison, founder of Oracle, Oracle red logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["oracle", "orcl", "larry ellison", "ellison"],
@@ -384,7 +384,7 @@ VISUAL_REGISTRY = {
         "triggers": ["federal reserve", "the fed", "fomc", "rate cut", "rate hike", "rate hold"],
     },
     "fed_chair": {
-        "visual": "Dramatic closeup portrait of Federal Reserve Chair at microphones, serious measured expression, dark suit, Federal Reserve seal glowing subtly in dark background behind them, cinematic editorial photography, dark moody lighting",
+        "visual": "Dramatic closeup portrait of Federal Reserve Chair Kevin Warsh at microphones, Federal Reserve seal glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["warsh", "powell", "fed chair"],
@@ -432,31 +432,31 @@ VISUAL_REGISTRY = {
 
 FACE_REGISTRY = {
     # Tech CEOs
-    "elon_musk":      {"face": "Elon Musk closeup portrait, short dark hair, stern intense expression, dark crew neck", "side": "left"},
-    "sam_altman":     {"face": "Sam Altman closeup portrait, brown curly hair, calm determined expression, dark sweater", "side": "right"},
-    "jensen_huang":   {"face": "Jensen Huang closeup portrait, silver-gray hair, glasses, black leather jacket, confident", "side": "left"},
-    "sundar_pichai":  {"face": "Sundar Pichai closeup portrait, dark hair, glasses, calm composed expression, dark blazer", "side": "left"},
-    "satya_nadella":  {"face": "Satya Nadella closeup portrait, bald, glasses, warm expression, dark suit", "side": "left"},
-    "mark_zuckerberg":{"face": "Mark Zuckerberg closeup portrait, short brown hair, intense focused expression, gray t-shirt", "side": "left"},
-    "tim_cook":       {"face": "Tim Cook closeup portrait, silver hair, glasses, calm serious expression, dark blazer", "side": "left"},
-    "lisa_su":        {"face": "Lisa Su closeup portrait, dark hair, confident expression, professional blazer", "side": "left"},
-    "dario_amodei":   {"face": "Dario Amodei closeup portrait, dark curly hair, thoughtful expression, casual shirt", "side": "left"},
-    "andy_jassy":     {"face": "Andy Jassy closeup portrait, curly dark hair, bald top, intense expression, button-down shirt", "side": "left"},
+    "elon_musk":      {"face": "Elon Musk, CEO of Tesla and xAI, dramatic closeup portrait, photorealistic", "side": "left"},
+    "sam_altman":     {"face": "Sam Altman, CEO of OpenAI, dramatic closeup portrait, photorealistic", "side": "right"},
+    "jensen_huang":   {"face": "Jensen Huang, CEO of Nvidia, dramatic closeup portrait, photorealistic", "side": "left"},
+    "sundar_pichai":  {"face": "Sundar Pichai, CEO of Google, dramatic closeup portrait, photorealistic", "side": "left"},
+    "satya_nadella":  {"face": "Satya Nadella, CEO of Microsoft, dramatic closeup portrait, photorealistic", "side": "left"},
+    "mark_zuckerberg":{"face": "Mark Zuckerberg, CEO of Meta, dramatic closeup portrait, photorealistic", "side": "left"},
+    "tim_cook":       {"face": "Tim Cook, CEO of Apple, dramatic closeup portrait, photorealistic", "side": "left"},
+    "lisa_su":        {"face": "Lisa Su, CEO of AMD, dramatic closeup portrait, photorealistic", "side": "left"},
+    "dario_amodei":   {"face": "Dario Amodei, CEO of Anthropic, dramatic closeup portrait, photorealistic", "side": "left"},
+    "andy_jassy":     {"face": "Andy Jassy, CEO of Amazon, dramatic closeup portrait, photorealistic", "side": "left"},
     
     # Finance
-    "jamie_dimon":    {"face": "Jamie Dimon closeup portrait, silver hair, strong jaw, power suit with tie, commanding", "side": "left"},
-    "larry_fink":     {"face": "Larry Fink closeup portrait, gray hair, glasses, serious expression, dark suit", "side": "left"},
-    "david_solomon":  {"face": "David Solomon closeup portrait, bald, confident expression, dark suit with tie", "side": "left"},
-    "warren_buffett": {"face": "Warren Buffett closeup portrait, white hair, glasses, warm knowing smile, suit", "side": "left"},
+    "jamie_dimon":    {"face": "Jamie Dimon, CEO of JPMorgan Chase, dramatic closeup portrait, photorealistic", "side": "left"},
+    "larry_fink":     {"face": "Larry Fink, CEO of BlackRock, dramatic closeup portrait, photorealistic", "side": "left"},
+    "david_solomon":  {"face": "David Solomon, CEO of Goldman Sachs, dramatic closeup portrait, photorealistic", "side": "left"},
+    "warren_buffett": {"face": "Warren Buffett, CEO of Berkshire Hathaway, dramatic closeup portrait, photorealistic", "side": "left"},
     
     # Government
-    "trump":          {"face": "Donald Trump closeup portrait, blonde hair, red tie, stern powerful expression, dark suit", "side": "left"},
-    "powell":         {"face": "Jerome Powell closeup portrait, gray hair, serious measured expression, dark suit with tie", "side": "right"},
-    "warsh":          {"face": "Kevin Warsh closeup portrait, dark hair, clean-cut, serious expression, dark suit", "side": "right"},
-    "gensler":        {"face": "Gary Gensler closeup portrait, balding gray hair, stern regulatory expression, suit", "side": "left"},
+    "trump":          {"face": "Donald Trump, President of the United States, dramatic closeup portrait, photorealistic", "side": "left"},
+    "powell":         {"face": "Jerome Powell, former Federal Reserve Chair, dramatic closeup portrait, photorealistic", "side": "right"},
+    "warsh":          {"face": "Kevin Warsh, Federal Reserve Chair, dramatic closeup portrait, photorealistic", "side": "right"},
+    "gensler":        {"face": "Gary Gensler, SEC Chair, dramatic closeup portrait, photorealistic", "side": "left"},
     
     # Other
-    "palmer_luckey":  {"face": "Palmer Luckey closeup portrait, curly brown hair, Hawaiian shirt, energetic expression", "side": "left"},
+    "palmer_luckey":  {"face": "Palmer Luckey, founder of Anduril, dramatic closeup portrait, photorealistic", "side": "left"},
 }
 
 
