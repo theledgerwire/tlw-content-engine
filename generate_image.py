@@ -1,5 +1,18 @@
-# TLW v18.6
-# Upgrades from v18.3:
+# TLW v18.7b
+# Upgrades from v18.7:
+# - Visual Identity Router: maps known companies/people to recognizable visuals
+# - Versus Detection: auto-generates split-screen face-offs for conflict stories
+# - Model routing: PERSON/VERSUS → Nano Banana, LOGO/PRODUCT/BUILDING → Grok
+# - Requires: visual_identity.py in same directory
+#
+# Previous upgrades (v18.7):
+# - People-Forward Cards: At least 3 of 7 daily cards must feature real people
+# - Daily people-card counter (GitHub-persisted, same pattern as carousel counter)
+# - Fallback Claude prompt now requests people when quota not met
+# - Model routing override: forces Nano Banana when people card is needed
+# - FORCE_PEOPLE env var: set to "1" to force ALL cards to be people-forward
+#
+# Previous upgrades (v18.6):
 # - Buffer Assets Input Migration: { images: [...] } → [{ image: {...} }]
 # - Buffer document assets: { documents: [...] } → [{ document: {...} }]
 # - Error logging added to post_to_buffer for X/LinkedIn debugging
@@ -29,6 +42,14 @@ except ImportError:
     SMART_PROMPTS_AVAILABLE = False
     print("Smart prompts not available")
 
+try:
+    from visual_identity import get_visual_anchor, enrich_prompt, get_model_override, detect_versus, get_versus_prompt
+    VISUAL_ID_AVAILABLE = True
+    print("Visual identity loaded")
+except ImportError:
+    VISUAL_ID_AVAILABLE = False
+    print("Visual identity not available")
+
 # ── CREDENTIALS ───────────────────────────────────────────────────
 BUFFER_API_KEY    = os.environ.get("BUFFER_API_KEY", "")
 BUFFER_PROFILE_X  = os.environ.get("BUFFER_PROFILE_X", "")
@@ -48,6 +69,45 @@ CAROUSEL_MAX_DAILY  = 4
 CAROUSEL_COUNT_PATH = "data/carousel_count.json"
 PREVIEW_MODE      = os.environ.get("PREVIEW_MODE", "0") == "1"
 FORCE_STYLE       = os.environ.get("FORCE_STYLE", "dark").lower().strip()
+
+# ── v18.7: PEOPLE-FORWARD CONFIG ──────────────────────────────────
+PEOPLE_MIN_DAILY    = 3                          # At least 3 cards/day must have real people
+PEOPLE_COUNT_PATH   = "data/people_count.json"   # GitHub-persisted daily counter
+FORCE_PEOPLE        = os.environ.get("FORCE_PEOPLE", "0") == "1"  # Override: force ALL cards to people
+
+# People-forward prompt fragments for different story types
+PEOPLE_SCENE_MAP = {
+    "earnings":   "CEO presenting quarterly earnings on stage, large screen with charts behind them, corporate conference setting",
+    "ipo":        "executives ringing the stock exchange opening bell, celebrating, exchange trading floor",
+    "fed":        "Federal Reserve chair at press conference podium, microphones, press photographers",
+    "crypto":     "crypto trader at multi-monitor desk, green charts, intense focus, trading floor",
+    "layoffs":    "workers carrying boxes out of corporate office building, professional attire, city street",
+    "deal":       "executives shaking hands in corporate boardroom, glass walls, city skyline",
+    "lawsuit":    "attorneys on courthouse steps with microphones, press crowd, legal setting",
+    "regulation": "government official testifying before congressional committee, nameplate visible",
+    "default":    "business executive in professional setting, editorial portrait, corporate environment",
+}
+
+def _pick_people_scene(story_title="", story_summary="", h2=""):
+    """Pick the best people-scene prompt fragment based on story content."""
+    combined = f"{story_title} {story_summary} {h2}".lower()
+    if any(w in combined for w in ["earnings", "revenue", "quarterly", "q1", "q2", "q3", "q4", "beat", "miss"]):
+        return PEOPLE_SCENE_MAP["earnings"]
+    if any(w in combined for w in ["ipo", "s-1", "goes public", "listing", "debut"]):
+        return PEOPLE_SCENE_MAP["ipo"]
+    if any(w in combined for w in ["fed", "federal reserve", "rate", "powell", "warsh", "central bank", "fomc"]):
+        return PEOPLE_SCENE_MAP["fed"]
+    if any(w in combined for w in ["bitcoin", "btc", "crypto", "ethereum", "solana", "token", "coin"]):
+        return PEOPLE_SCENE_MAP["crypto"]
+    if any(w in combined for w in ["layoff", "fired", "cut", "job loss", "workforce"]):
+        return PEOPLE_SCENE_MAP["layoffs"]
+    if any(w in combined for w in ["acquire", "merger", "deal", "buyout", "bid"]):
+        return PEOPLE_SCENE_MAP["deal"]
+    if any(w in combined for w in ["lawsuit", "sue", "trial", "verdict", "court"]):
+        return PEOPLE_SCENE_MAP["lawsuit"]
+    if any(w in combined for w in ["sec", "regulation", "bill", "act", "ban", "rule", "senate", "congress"]):
+        return PEOPLE_SCENE_MAP["regulation"]
+    return PEOPLE_SCENE_MAP["default"]
 
 # ── STYLE VARIANTS ────────────────────────────────────────────────
 STYLE_VARIANTS = [
@@ -299,7 +359,80 @@ def carousel_allowed():
     if not same_day: return True
     return count < CAROUSEL_MAX_DAILY
 
-print(f"=== TLW v18.4 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'}")
+# ── v18.7: PEOPLE CARD COUNTER ────────────────────────────────────
+PEOPLE_COUNT_URL = f"https://raw.githubusercontent.com/{REPO}/main/{PEOPLE_COUNT_PATH}?t={int(time.time())}"
+
+def load_people_count():
+    """Load today's people-card count from GitHub. Returns (is_same_day, count)."""
+    try:
+        r = requests.get(PEOPLE_COUNT_URL, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            today = datetime.now().strftime("%Y-%m-%d")
+            return data.get("date") == today, data.get("count", 0), data.get("total", 0)
+    except Exception as e:
+        print(f"Could not load people count: {e}")
+    return False, 0, 0
+
+def save_people_count(people_count, total_count):
+    """Save today's people-card count to GitHub."""
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        payload_data = json.dumps({"date": today, "count": people_count, "total": total_count}, indent=2)
+        encoded = base64.b64encode(payload_data.encode()).decode()
+        headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+        get_r = requests.get(f"https://api.github.com/repos/{REPO}/contents/{PEOPLE_COUNT_PATH}", headers=headers, timeout=10)
+        sha = get_r.json().get("sha") if get_r.status_code == 200 else None
+        payload = {"message": "Update people card count", "content": encoded, "branch": "main"}
+        if sha: payload["sha"] = sha
+        put_r = requests.put(f"https://api.github.com/repos/{REPO}/contents/{PEOPLE_COUNT_PATH}", headers=headers, json=payload, timeout=15)
+        print(f"People count saved (people:{people_count}, total:{total_count}): {put_r.status_code}")
+    except Exception as e:
+        print(f"Could not save people count: {e}")
+
+def should_force_people():
+    """Decide if this card MUST be a people card to hit the daily minimum.
+    
+    Logic: If we've posted N cards today and only P had people,
+    and the remaining slots (7-N) can't reach PEOPLE_MIN_DAILY without forcing,
+    then force people on this card.
+    
+    Example: 4 cards posted, 0 people → 3 remaining slots, need 3 people → FORCE all remaining.
+    Example: 2 cards posted, 2 people → already close to quota → don't force.
+    """
+    if FORCE_PEOPLE:
+        print("[PEOPLE] FORCE_PEOPLE=1 — forcing people card")
+        return True
+    
+    same_day, people_count, total_count = load_people_count()
+    if not same_day:
+        # New day — first card. We have ~7 slots, need 3 people.
+        # Don't force the very first card, but start tracking.
+        print(f"[PEOPLE] New day — starting fresh (need {PEOPLE_MIN_DAILY} people cards today)")
+        return False
+    
+    remaining_slots = max(7 - total_count, 1)  # Assume ~7 cards/day
+    people_still_needed = max(PEOPLE_MIN_DAILY - people_count, 0)
+    
+    if people_still_needed <= 0:
+        print(f"[PEOPLE] Quota met ({people_count}/{PEOPLE_MIN_DAILY}) — people not forced")
+        return False
+    
+    if people_still_needed >= remaining_slots:
+        print(f"[PEOPLE] FORCING people card — need {people_still_needed} more, only {remaining_slots} slots left")
+        return True
+    
+    # Probabilistic: increase chance as we fall behind
+    force_probability = people_still_needed / remaining_slots
+    roll = random.random()
+    should = roll < force_probability
+    print(f"[PEOPLE] Probabilistic: need {people_still_needed}/{remaining_slots} remaining — prob={force_probability:.2f}, roll={roll:.2f} → {'FORCE' if should else 'skip'}")
+    return should
+
+# Track whether THIS card ended up being people-forward (set during get_photo)
+_THIS_CARD_IS_PEOPLE = False
+
+print(f"=== TLW v18.7 === CARD_TYPE: {CARD_TYPE} | Style: {_sname} | Preview: {PREVIEW_MODE} | Blob: {'YES' if TLW_STORY else 'NO'} | ForcePeople: {FORCE_PEOPLE}")
 
 def x_char_count(text):
     t = re.sub(r'https?://\S+|[\w]+\.com\S*', 'X'*23, text)
@@ -321,7 +454,6 @@ def _build_linkedin_from_blob(blob):
 
 def _estimate_baseline(stat_hook):
     if not stat_hook: return "0"
-    # v18.4 FIX: bail early if no digits at all (handles NOPE., SOLANA, ZERO, etc.)
     if not re.search(r'\d', stat_hook): return "0"
     m = re.search(r'([+-]?)([\d.]+)%', stat_hook)
     if m:
@@ -483,26 +615,59 @@ def get_country_keywords(keyword, story_context=""):
         if trigger in combined: return replacements
     return []
 
-def generate_flux_prompt(title, summary, style=None):
+def generate_flux_prompt(title, summary, style=None, force_people=False):
+    """v18.7b: Visual identity check FIRST, then smart_prompts, then fallback."""
     if style is None: style = ACTIVE_STYLE
+
+    # ── NEW v18.7b: Visual identity — recognizable company/person/versus visuals ──
+    if VISUAL_ID_AVAILABLE and TLW_STORY:
+        try:
+            anchor = get_visual_anchor(TLW_STORY)
+            if anchor:
+                avoid = ""
+                if IMAGE_DEDUP_AVAILABLE:
+                    try: avoid = get_avoidance_prompt()
+                    except: pass
+                prompt = f"{anchor}, {style['flux_style']}{avoid}"
+                print(f"[VISUAL ID] Using identity prompt: {prompt[:80]}...")
+                return prompt
+        except Exception as e:
+            print(f"[VISUAL ID] Failed: {e} — falling through")
 
     # ── NEW: Try entity-aware prompt first (people/company detection) ──
     if SMART_PROMPTS_AVAILABLE and TLW_STORY:
         try:
             enhanced = maybe_enhance_image_angle(TLW_STORY)
             if enhanced:
+                # v18.7: If force_people and the smart prompt doesn't mention people, inject it
+                if force_people and not any(w in enhanced.lower() for w in ["person", "people", "ceo", "executive", "trader", "official", "man", "woman", "speaking", "podium", "stage", "conference"]):
+                    people_scene = _pick_people_scene(title, summary)
+                    enhanced = f"{people_scene}, {enhanced}"
+                    print(f"[PEOPLE] Injected people scene into smart prompt")
+
                 avoid = ""
                 if IMAGE_DEDUP_AVAILABLE:
                     try: avoid = get_avoidance_prompt()
                     except: pass
                 print(f"Using ENTITY-AWARE prompt: {enhanced[:80]}...")
-                return f"{enhanced}{avoid}"
+                return enhanced + avoid
         except Exception as e:
             print(f"Smart prompt failed: {e} — falling back")
 
     # ── Original: Use pre-written image_angle from research_agent ──
     if TLW_STORY and TLW_STORY.get("image_angle"):
         angle = TLW_STORY["image_angle"]
+
+        # v18.7b: Enrich image_angle with visual identity if available
+        if VISUAL_ID_AVAILABLE:
+            angle = enrich_prompt(angle, TLW_STORY)
+
+        # v18.7: If force_people and image_angle doesn't mention people, prepend people scene
+        if force_people and not any(w in angle.lower() for w in ["person", "people", "ceo", "executive", "trader", "official", "man", "woman", "speaking", "podium", "stage", "conference"]):
+            people_scene = _pick_people_scene(title, summary)
+            angle = f"{people_scene}, {angle}"
+            print(f"[PEOPLE] Injected people scene into image_angle")
+
         avoid = ""
         if IMAGE_DEDUP_AVAILABLE:
             try: avoid = get_avoidance_prompt()
@@ -511,9 +676,18 @@ def generate_flux_prompt(title, summary, style=None):
         return f"{angle}{avoid}, {style['flux_style']}"
 
     if not ANTHROPIC_KEY: return None
-    try:
+
+    # v18.7: TWO different fallback prompts — people vs object
+    if force_people:
+        people_scene = _pick_people_scene(title, summary)
         prompt = f"""You are an AI image director for The Ledger Wire. Story: {title} Summary: {summary}
-Generate an image prompt. RULES: Match story literally. Style: {style["flux_style"]}. NO text. NO people. NO faces. Editorial photography. Max 25 words."""
+Generate an image prompt featuring A REAL PERSON in context. Use this scene: {people_scene}.
+RULES: Show a real human in the scene. Style: {style["flux_style"]}. NO text overlays. Editorial photography. Photorealistic. Max 30 words."""
+    else:
+        prompt = f"""You are an AI image director for The Ledger Wire. Story: {title} Summary: {summary}
+Generate an image prompt. RULES: Match story literally. Style: {style["flux_style"]}. NO text. NO logos. Editorial photography. Max 25 words."""
+
+    try:
         r = requests.post("https://api.anthropic.com/v1/messages",
             headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
             json={"model": "claude-sonnet-4-6", "max_tokens": 100, "messages": [{"role": "user", "content": prompt}]}, timeout=30)
@@ -575,12 +749,24 @@ def fetch_nano_banana(img_prompt):
 _CURRENT_IMAGE_TYPE = "SCENE"
 
 def get_photo(keyword, story_context="", used_images=None):
-    global _CURRENT_IMAGE_TYPE
+    global _CURRENT_IMAGE_TYPE, _THIS_CARD_IS_PEOPLE
     if used_images is None: used_images = {}
+
+    # v18.7: Check if we need to force a people card
+    force_people = should_force_people()
 
     # Detect image type for model routing
     _CURRENT_IMAGE_TYPE = "SCENE"
-    if SMART_PROMPTS_AVAILABLE and TLW_STORY:
+
+    # ── NEW v18.7b: Visual identity model routing (takes priority) ──
+    if VISUAL_ID_AVAILABLE and TLW_STORY:
+        vi_override = get_model_override(TLW_STORY)
+        if vi_override:
+            _CURRENT_IMAGE_TYPE = vi_override
+            print(f"[VISUAL ID] Model routing override: {vi_override}")
+
+    # Smart prompts classification (only if visual identity didn't match)
+    elif SMART_PROMPTS_AVAILABLE and TLW_STORY:
         try:
             img_type, _ = _classify(TLW_STORY)
             _CURRENT_IMAGE_TYPE = img_type
@@ -588,9 +774,14 @@ def get_photo(keyword, story_context="", used_images=None):
         except Exception as e:
             print(f"[MODEL ROUTER] Classification failed: {e}")
 
+    # v18.7: If force_people, override image type to PORTRAIT
+    if force_people and _CURRENT_IMAGE_TYPE not in ('PORTRAIT', 'VERSUS'):
+        print(f"[PEOPLE] Overriding {_CURRENT_IMAGE_TYPE} → PORTRAIT (people quota)")
+        _CURRENT_IMAGE_TYPE = "PORTRAIT"
+
     if FAL_KEY:
         print("--- Trying AI image generation ---")
-        flux_prompt = generate_flux_prompt(story_context or keyword, story_context, style=ACTIVE_STYLE)
+        flux_prompt = generate_flux_prompt(story_context or keyword, story_context, style=ACTIVE_STYLE, force_people=force_people)
 
         # Route: PORTRAIT/VERSUS → Nano Banana 2, everything else → Grok
         if _CURRENT_IMAGE_TYPE in ('PORTRAIT', 'VERSUS') and flux_prompt:
@@ -604,6 +795,11 @@ def get_photo(keyword, story_context="", used_images=None):
 
         if photo:
             print("AI image success")
+            # v18.7: Track if this card is people-forward
+            if _CURRENT_IMAGE_TYPE in ('PORTRAIT', 'VERSUS') or force_people:
+                _THIS_CARD_IS_PEOPLE = True
+                print(f"[PEOPLE] This card is people-forward")
+
             if IMAGE_DEDUP_AVAILABLE and flux_prompt:
                 try:
                     story_data = TLW_STORY if TLW_STORY else {"stat_hook": keyword, "sub_headline": story_context[:50]}
@@ -612,6 +808,17 @@ def get_photo(keyword, story_context="", used_images=None):
                     print(f"Dedup save failed: {e}")
             return photo, img_url
         print("AI image failed \u2014 trying Pexels")
+
+    # v18.7: If people forced, try Pexels with people-specific keywords first
+    if force_people:
+        people_kws = ["business executive portrait", "ceo conference stage", "trader stock exchange floor",
+                      "business professional office", "corporate executive meeting"]
+        for kw in people_kws:
+            photo, img_url = fetch_pexels(kw, used_images)
+            if photo:
+                _THIS_CARD_IS_PEOPLE = True
+                return photo, img_url
+
     country_kws = get_country_keywords(keyword, story_context)
     keywords_to_try = [keyword] + country_kws + PHOTO_FALLBACKS
     for kw in keywords_to_try:
@@ -745,7 +952,7 @@ def card_with_photo(img, h1, h2, hook="", company_name=None, source="", support_
         draw_text_shadow(draw, (PAD, y), line, body_f, BODY_GREY, offset=2); y += bd_lh + 10
     draw_footer(draw)
     img.save("card.png", "PNG")
-    print("Card saved (photo mode \u2014 v18.4)")
+    print("Card saved (photo mode \u2014 v18.7)")
 
 # ── CARD: NAVY ────────────────────────────────────────────────────
 def card_no_photo(h1, h2, support_lines=None, hook=""):
@@ -1026,7 +1233,6 @@ def post_to_buffer_carousel(post_text, image_urls, channel_id, api_key, platform
     print(f"Posting carousel to Buffer {platform} ({len(image_urls)} slides)..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
-    # v18.4: new assets format — array of { image: { url } }
     imgs_gql = ", ".join([f'{{ image: {{ url: "{u}" }} }}' for u in image_urls])
     query = ('mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: [%s]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}') % (safe_text, cid, imgs_gql)
     for attempt in range(retries + 1):
@@ -1051,7 +1257,6 @@ def post_to_buffer_document(post_text, doc_url, channel_id, api_key, thumbnail_u
     print(f"Posting LinkedIn PDF document..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip(); thumb = thumbnail_url or doc_url
-    # v18.4: new assets format — array of { document: { url, title, thumbnailUrl } }
     query = ('mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: [{ document: { url: "%s", title: "The Ledger Wire", thumbnailUrl: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}') % (safe_text, cid, doc_url, thumb)
     for attempt in range(retries + 1):
         try:
@@ -1075,7 +1280,6 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
     print(f"Posting to Buffer Instagram..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
-    # v18.4: new assets format — array of { image: { url } }
     query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    metadata: { instagram: { type: post, shouldShareToFeed: true } },\n    assets: [{ image: { url: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
     for attempt in range(retries + 1):
         try:
@@ -1095,7 +1299,7 @@ def post_to_buffer_instagram(post_text, image_url, channel_id, api_key, retries=
                 print(f"Instagram post created: {post_data['post']['id']}")
                 return True
             print(f"Instagram: no post ID in response — may be reminder mode")
-            return True  # Reminder was likely created even without post ID
+            return True
         except Exception as e:
             print(f"Buffer Instagram exception: {e}")
             if attempt < retries: time.sleep(5)
@@ -1162,7 +1366,6 @@ def post_to_buffer(post_text, image_url, channel_id, api_key, platform="", retri
     print(f"Posting to Buffer {platform}..."); time.sleep(3)
     def esc(s): return s.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n').replace('\r','')
     safe_text = esc(post_text); cid = channel_id.strip()
-    # v18.4: new assets format — array of { image: { url } }
     query = 'mutation CreatePost {\n  createPost(input: {\n    text: "%s",\n    channelId: "%s",\n    schedulingType: automatic,\n    mode: addToQueue,\n    assets: [{ image: { url: "%s" } }]\n  }) {\n    ... on PostActionSuccess { post { id text } }\n    ... on MutationError { message }\n  }\n}' % (safe_text, cid, image_url)
     for attempt in range(retries+1):
         try:
@@ -1351,6 +1554,17 @@ if BUFFER_API_KEY and GITHUB_TOKEN:
             print("YouTube: SUCCESS" if ok_yt else "YouTube: FAILED")
         else:
             print("YouTube: skipped \u2014 add BUFFER_PROFILE_YT to GitHub secrets")
+
+        # v18.7: Update people card counter AFTER successful post
+        same_day, people_count, total_count = load_people_count()
+        if not same_day:
+            people_count = 0
+            total_count = 0
+        total_count += 1
+        if _THIS_CARD_IS_PEOPLE:
+            people_count += 1
+        save_people_count(people_count, total_count)
+        print(f"[PEOPLE] Daily tally: {people_count}/{total_count} cards are people-forward (target: {PEOPLE_MIN_DAILY})")
 
         save_used_story(story_hash(STORY_TITLE), STORY_TITLE)
         print(f"Story hash + title saved: {story_hash(STORY_TITLE)}")
