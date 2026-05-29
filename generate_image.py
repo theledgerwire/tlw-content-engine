@@ -1,9 +1,9 @@
-# TLW v18.7b
-# Upgrades from v18.7:
-# - Visual Identity Router: maps known companies/people to recognizable visuals
-# - Versus Detection: auto-generates split-screen face-offs for conflict stories
-# - Model routing: PERSON/VERSUS → Nano Banana, LOGO/PRODUCT/BUILDING → Grok
-# - Requires: visual_identity.py in same directory
+# TLW v18.7c
+# Bugfix from v18.7b:
+# - CRITICAL: Visual identity now works WITHOUT TLW_STORY blob
+#   (was gated behind `if TLW_STORY` — skipped 100% of RSS-only stories)
+# - Builds fallback story_data from title/summary when blob is missing
+# - Model routing also fixed for non-blob stories
 #
 # Previous upgrades (v18.7):
 # - People-Forward Cards: At least 3 of 7 daily cards must feature real people
@@ -616,13 +616,16 @@ def get_country_keywords(keyword, story_context=""):
     return []
 
 def generate_flux_prompt(title, summary, style=None, force_people=False):
-    """v18.7b: Visual identity check FIRST, then smart_prompts, then fallback."""
+    """v18.7c: Visual identity check FIRST — works with blob OR title/summary."""
     if style is None: style = ACTIVE_STYLE
 
-    # ── NEW v18.7b: Visual identity — recognizable company/person/versus visuals ──
-    if VISUAL_ID_AVAILABLE and TLW_STORY:
+    # ── v18.7c: Build story_data for visual identity (works with or without blob) ──
+    vi_story = TLW_STORY if TLW_STORY else {"title": title, "summary": summary, "sub_headline": title, "stat_hook": ""}
+
+    # ── Visual identity — recognizable company/person/versus visuals ──
+    if VISUAL_ID_AVAILABLE:
         try:
-            anchor = get_visual_anchor(TLW_STORY)
+            anchor = get_visual_anchor(vi_story)
             if anchor:
                 avoid = ""
                 if IMAGE_DEDUP_AVAILABLE:
@@ -758,9 +761,10 @@ def get_photo(keyword, story_context="", used_images=None):
     # Detect image type for model routing
     _CURRENT_IMAGE_TYPE = "SCENE"
 
-    # ── NEW v18.7b: Visual identity model routing (takes priority) ──
-    if VISUAL_ID_AVAILABLE and TLW_STORY:
-        vi_override = get_model_override(TLW_STORY)
+    # ── v18.7c: Visual identity model routing (works with or without blob) ──
+    vi_story = TLW_STORY if TLW_STORY else {"title": story_context, "summary": story_context, "sub_headline": keyword, "stat_hook": ""}
+    if VISUAL_ID_AVAILABLE:
+        vi_override = get_model_override(vi_story)
         if vi_override:
             _CURRENT_IMAGE_TYPE = vi_override
             print(f"[VISUAL ID] Model routing override: {vi_override}")
