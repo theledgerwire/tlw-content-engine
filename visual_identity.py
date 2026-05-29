@@ -26,7 +26,7 @@ VISUAL_REGISTRY = {
 
     # ── BIG TECH ──────────────────────────────────────────────────
     "nvidia": {
-        "visual": "Jensen Huang in black leather jacket presenting on stage, Nvidia green logo visible on screen behind him",
+        "visual": "Dramatic closeup portrait of Jensen Huang, silver-gray hair, glasses, black leather jacket, confident intense expression, Nvidia green logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["nvidia", "nvda", "jensen huang", "jensen", "gpu", "blackwell", "vera rubin", "grace"],
@@ -38,27 +38,27 @@ VISUAL_REGISTRY = {
         "triggers": ["apple", "aapl", "tim cook", "iphone", "wwdc", "siri", "vision pro"],
     },
     "google": {
-        "visual": "Sundar Pichai on Google I/O stage, Google colored logo prominently displayed on massive screen",
+        "visual": "Dramatic closeup portrait of Sundar Pichai, dark hair, glasses, calm composed expression, dark blazer, Google colored G logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["google", "googl", "alphabet", "sundar pichai", "sundar", "gemini", "deepmind", "android", "antigravity"],
     },
     "microsoft": {
-        "visual": "Satya Nadella speaking at a conference, Microsoft logo on blue background behind him",
+        "visual": "Dramatic closeup portrait of Satya Nadella, bald head, glasses, warm determined expression, dark suit, Microsoft four-square logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["microsoft", "msft", "satya nadella", "nadella", "azure", "copilot", "windows"],
     },
     "meta": {
-        "visual": "Mark Zuckerberg in gray t-shirt at Meta headquarters, Meta infinity loop logo on building exterior",
+        "visual": "Dramatic closeup portrait of Mark Zuckerberg, short brown hair, intense focused expression, gray t-shirt, Meta infinity loop logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["meta", "zuckerberg", "facebook", "instagram", "whatsapp", "threads", "reality labs"],
     },
     "amazon": {
-        "visual": "Amazon smile logo on a massive fulfillment center, or Andy Jassy presenting at AWS re:Invent",
-        "type": "LOGO",
-        "model": "grok",
+        "visual": "Dramatic closeup portrait of Andy Jassy, curly dark hair, intense expression, button-down shirt, Amazon smile logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "type": "PERSON",
+        "model": "nano_banana",
         "triggers": ["amazon", "amzn", "aws", "andy jassy", "bezos", "prime"],
     },
     "tesla": {
@@ -70,19 +70,19 @@ VISUAL_REGISTRY = {
 
     # ── AI COMPANIES ──────────────────────────────────────────────
     "openai": {
-        "visual": "Sam Altman in a dark blazer at a press conference, OpenAI hexagonal logo visible behind him",
+        "visual": "Dramatic closeup portrait of Sam Altman, brown curly hair, calm determined expression, dark blazer, OpenAI hexagonal logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["openai", "sam altman", "altman", "chatgpt", "gpt-5", "gpt-6", "dall-e"],
     },
     "anthropic": {
-        "visual": "Dario Amodei speaking at a tech conference, Anthropic logo on screen, warm stage lighting",
+        "visual": "Dramatic closeup portrait of Dario Amodei, dark curly hair, thoughtful expression, casual shirt, Anthropic logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["anthropic", "dario amodei", "amodei", "claude", "claude mythos"],
     },
     "xai": {
-        "visual": "Elon Musk presenting with xAI logo on a dark screen behind him",
+        "visual": "Dramatic closeup portrait of Elon Musk, short dark hair, stern intense expression, dark crew neck, xAI logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["xai", "grok ai", "elon musk ai"],
@@ -108,7 +108,7 @@ VISUAL_REGISTRY = {
         "triggers": ["intel", "intc", "pat gelsinger"],
     },
     "arm": {
-        "visual": "Arm CEO Rene Haas on an earnings stage, Arm logo on display, semiconductor conference setting",
+        "visual": "Dramatic closeup portrait of Rene Haas, professional expression, dark blazer, Arm logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["arm holdings", "arm ipo", "rene haas"],
@@ -132,7 +132,7 @@ VISUAL_REGISTRY = {
         "triggers": ["samsung chip", "samsung semiconductor", "samsung foundry", "samsung factory", "samsung workers"],
     },
     "marvell": {
-        "visual": "Marvell Technology CEO Matt Murphy presenting earnings, Marvell logo on conference screen behind him",
+        "visual": "Dramatic closeup portrait of Matt Murphy, confident expression, dark suit, Marvell Technology logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["marvell", "matt murphy"],
@@ -146,7 +146,7 @@ VISUAL_REGISTRY = {
 
     # ── FINANCE / BANKING ─────────────────────────────────────────
     "jpmorgan": {
-        "visual": "Jamie Dimon in a dark suit at a podium, JPMorgan Chase logo behind him, corporate conference setting",
+        "visual": "Dramatic closeup portrait of Jamie Dimon, silver hair, strong jaw, commanding expression, power suit with tie, JPMorgan Chase blue logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["jpmorgan", "jp morgan", "jamie dimon", "dimon", "chase"],
@@ -158,7 +158,7 @@ VISUAL_REGISTRY = {
         "triggers": ["goldman sachs", "goldman", "david solomon"],
     },
     "blackrock": {
-        "visual": "Larry Fink speaking at a conference, BlackRock logo visible, or BlackRock headquarters NYC",
+        "visual": "Dramatic closeup portrait of Larry Fink, gray hair, glasses, serious expression, dark suit, BlackRock logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["blackrock", "larry fink", "fink"],
@@ -172,7 +172,7 @@ VISUAL_REGISTRY = {
 
     # ── ENTERPRISE / SAAS ─────────────────────────────────────────
     "salesforce": {
-        "visual": "Marc Benioff on Dreamforce stage, Salesforce cloud logo on massive screen behind him",
+        "visual": "Dramatic closeup portrait of Marc Benioff, gray beard, glasses, confident expression, blazer, Salesforce cloud logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["salesforce", "marc benioff", "benioff", "agentforce", "dreamforce"],
@@ -184,9 +184,9 @@ VISUAL_REGISTRY = {
         "triggers": ["snowflake", "snow"],
     },
     "oracle": {
-        "visual": "Oracle headquarters in Austin Texas with red Oracle logo on building, or Larry Ellison presenting",
-        "type": "BUILDING",
-        "model": "grok",
+        "visual": "Dramatic closeup portrait of Larry Ellison, gray hair, intense expression, dark blazer, Oracle red logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting",
+        "type": "PERSON",
+        "model": "nano_banana",
         "triggers": ["oracle", "orcl", "larry ellison", "ellison"],
     },
     "workday": {
@@ -279,6 +279,102 @@ VISUAL_REGISTRY = {
         "model": "grok",
         "triggers": ["coinbase", "coin"],
     },
+    "binance": {
+        "visual": "Binance yellow diamond logo on a dark crypto trading terminal, BNB coin, exchange interface",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["binance", "bnb", "cz binance"],
+    },
+    "grayscale": {
+        "visual": "Grayscale Investments logo on a dark financial terminal, Bitcoin ETF trading screen, institutional crypto",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["grayscale", "gbtc", "crypto etf", "bitcoin etf", "spot etf"],
+    },
+
+    # ── MARKET INDICES ────────────────────────────────────────────
+    "nasdaq": {
+        "visual": "Nasdaq tower in Times Square New York City lit up at night, massive digital stock ticker display, iconic market landmark",
+        "type": "BUILDING",
+        "model": "grok",
+        "triggers": ["nasdaq", "qqq", "nasdaq composite", "nasdaq all-time"],
+    },
+    "sp500": {
+        "visual": "Wall Street stock exchange trading floor with traders and green screens, bull statue, financial district",
+        "type": "SCENE",
+        "model": "grok",
+        "triggers": ["s&p 500", "s&p", "sp500", "spx", "wall street rally"],
+    },
+    "dow": {
+        "visual": "New York Stock Exchange building exterior with American flags, Wall Street sign, financial district",
+        "type": "BUILDING",
+        "model": "grok",
+        "triggers": ["dow jones", "djia", "dow industrials"],
+    },
+
+    # ── ECONOMIC INDICATORS ───────────────────────────────────────
+    "inflation": {
+        "visual": "Grocery store aisle with price tags showing high prices, shopping cart, consumer inflation, everyday life impact",
+        "type": "SCENE",
+        "model": "grok",
+        "triggers": ["cpi", "pce", "inflation", "consumer prices", "price index"],
+    },
+    "gdp": {
+        "visual": "US Capitol Building with economic data charts overlaid, GDP growth indicator, American economy",
+        "type": "BUILDING",
+        "model": "grok",
+        "triggers": ["gdp ", "economic growth", "gdp cut", "gdp revised"],
+    },
+    "jobs": {
+        "visual": "Long line of job seekers outside a career fair or unemployment office, diverse professionals waiting",
+        "type": "SCENE",
+        "model": "grok",
+        "triggers": ["jobs report", "unemployment", "payrolls", "jobless claims", "hiring freeze"],
+    },
+
+    # ── ADDITIONAL TECH ───────────────────────────────────────────
+    "wix": {
+        "visual": "Wix logo on a modern office building, website builder interface on screen, tech layoffs empty desks",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["wix"],
+    },
+    "uber": {
+        "visual": "Uber logo on a smartphone screen in a car, rideshare app interface, urban night setting",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["uber"],
+    },
+    "airbnb": {
+        "visual": "Airbnb belo logo on a smartphone, beautiful vacation rental in background, travel",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["airbnb", "abnb"],
+    },
+    "palantir": {
+        "visual": "Palantir logo on dark screens with data visualization dashboards, defense intelligence analytics",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["palantir", "pltr"],
+    },
+    "databricks": {
+        "visual": "Databricks orange logo on a data engineering dashboard screen, modern cloud office",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["databricks"],
+    },
+    "stripe": {
+        "visual": "Stripe purple gradient logo on a payment processing terminal, fintech, developer-first",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["stripe"],
+    },
+    "robinhood": {
+        "visual": "Robinhood green feather logo on a trading app screen, retail investor, mobile trading",
+        "type": "LOGO",
+        "model": "grok",
+        "triggers": ["robinhood", "hood"],
+    },
 
     # ── GOVERNMENT / INSTITUTIONS ─────────────────────────────────
     "fed": {
@@ -288,7 +384,7 @@ VISUAL_REGISTRY = {
         "triggers": ["federal reserve", "the fed", "fomc", "rate cut", "rate hike", "rate hold"],
     },
     "fed_chair": {
-        "visual": "Fed Chair at a press conference podium with Federal Reserve seal behind them, microphones, press photographers",
+        "visual": "Dramatic closeup portrait of Federal Reserve Chair at microphones, serious measured expression, dark suit, Federal Reserve seal glowing subtly in dark background behind them, cinematic editorial photography, dark moody lighting",
         "type": "PERSON",
         "model": "nano_banana",
         "triggers": ["warsh", "powell", "fed chair"],
