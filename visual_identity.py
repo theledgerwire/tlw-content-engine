@@ -143,6 +143,12 @@ VISUAL_REGISTRY = {
         "model": "grok",
         "triggers": ["cerebras", "wafer scale", "dinner plate chip"],
     },
+    "broadcom": {
+        "visual": "Dramatic closeup portrait of Hock Tan, CEO of Broadcom, Broadcom logo glowing subtly in dark background behind him, cinematic editorial photography, dark moody lighting, photorealistic",
+        "type": "PERSON",
+        "model": "nano_banana",
+        "triggers": ["broadcom", "avgo", "hock tan", "broadcom ai"],
+    },
 
     # ── FINANCE / BANKING ─────────────────────────────────────────
     "jpmorgan": {
@@ -776,11 +782,46 @@ def detect_entity_from_text(title, summary=""):
 
 # ── PROMPT ENRICHMENT ─────────────────────────────────────────────
 
+def get_fallback_logo_prompt(story_data):
+    """When no entity matches, extract company name and generate a logo prompt.
+    NEVER generate random people — always default to logo/product/building."""
+    title = story_data.get("title", "") or story_data.get("sub_headline", "")
+    summary = story_data.get("summary", "")
+    combined = f"{title} {summary}"
+    
+    # Try to find capitalized company names (2+ chars, not common words)
+    skip_words = {"the","and","for","but","not","with","from","has","its","are","was","will",
+                  "all","new","now","big","top","how","why","may","can","did","got","let",
+                  "just","more","most","very","also","been","have","this","that","what",
+                  "when","who","then","than","into","over","after","before","about",
+                  "still","every","first","last","next","week","year","day","market",
+                  "stock","price","trade","rally","crash","bank","fund","debt","rate",
+                  "tech","chip","data","cloud","deal","bill","plan","move","rise","fall",
+                  "asia","europe","china","india","japan","korea","iran","trump","biden",
+                  "global","world","billion","trillion","million","percent"}
+    
+    words = re.findall(r'\b([A-Z][a-zA-Z]{2,}(?:\s[A-Z][a-zA-Z]+)*)\b', combined)
+    company = None
+    for w in words:
+        if w.lower() not in skip_words and len(w) >= 3:
+            company = w
+            break
+    
+    if company:
+        prompt = (f"{company} company logo prominently displayed on a dark corporate backdrop, "
+                  f"dramatic golden lighting, cinematic editorial photography, photorealistic, "
+                  f"no people, no faces, no portraits")
+        print(f"[VISUAL ID] No entity match — logo fallback for '{company}': {prompt[:60]}...")
+        return prompt
+    
+    return ""
+
+
 def get_visual_anchor(story_data):
     """
     Returns the visual anchor string to prepend to image prompts.
-    Checks VERSUS first (split-screen), then single entity.
-    Returns empty string if nothing detected.
+    Checks VERSUS first (split-screen), then single entity, then logo fallback.
+    NEVER returns empty — unknown companies get logo prompt, never random faces.
     """
     # Check versus first — split-screen face-offs take priority
     versus_prompt = get_versus_prompt(story_data)
@@ -792,6 +833,12 @@ def get_visual_anchor(story_data):
     if entry:
         print(f"[VISUAL ID] Matched: {reg_key} → {entry['type']} → {entry['visual'][:60]}...")
         return entry["visual"]
+    
+    # NEW: Fallback to logo — NEVER random faces
+    fallback = get_fallback_logo_prompt(story_data)
+    if fallback:
+        return fallback
+    
     return ""
 
 
@@ -834,7 +881,9 @@ def get_model_override(story_data):
     """
     Returns image type override for generate_image.py model routing.
     VERSUS → always PORTRAIT (Nano Banana for faces).
-    Maps visual identity types to the _CURRENT_IMAGE_TYPE values.
+    PERSON → PORTRAIT (Nano Banana).
+    LOGO/PRODUCT/BUILDING/SCENE → SCENE (Grok).
+    Unknown (logo fallback) → SCENE (Grok) — NEVER Nano Banana for unknown entities.
     """
     # Versus stories always need Nano Banana for face quality
     pair_key, pair = detect_versus(story_data)
@@ -844,7 +893,9 @@ def get_model_override(story_data):
     
     reg_key, entry = detect_entity(story_data)
     if not entry:
-        return None
+        # No known entity — logo fallback will be used, route to Grok
+        print(f"[VISUAL ID] No entity match — routing to SCENE (Grok, no faces)")
+        return "SCENE"
     
     vtype = entry.get("type", "")
     if vtype == "PERSON":
