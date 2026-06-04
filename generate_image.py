@@ -1,4 +1,4 @@
-# TLW v18.7c
+# TLW v18.7e
 # Bugfix from v18.7b:
 # - CRITICAL: Visual identity now works WITHOUT TLW_STORY blob
 #   (was gated behind `if TLW_STORY` — skipped 100% of RSS-only stories)
@@ -616,54 +616,15 @@ def get_country_keywords(keyword, story_context=""):
     return []
 
 def generate_flux_prompt(title, summary, style=None, force_people=False):
-    """v18.7c: Visual identity check FIRST — works with blob OR title/summary."""
+    """v18.7d: image_angle FIRST (hand-crafted wins), visual identity as FALLBACK."""
     if style is None: style = ACTIVE_STYLE
 
     # ── v18.7c: Build story_data for visual identity (works with or without blob) ──
     vi_story = TLW_STORY if TLW_STORY else {"title": title, "summary": summary, "sub_headline": title, "stat_hook": ""}
 
-    # ── Visual identity — recognizable company/person/versus visuals ──
-    if VISUAL_ID_AVAILABLE:
-        try:
-            anchor = get_visual_anchor(vi_story)
-            if anchor:
-                avoid = ""
-                if IMAGE_DEDUP_AVAILABLE:
-                    try: avoid = get_avoidance_prompt()
-                    except: pass
-                prompt = f"{anchor}, {style['flux_style']}{avoid}"
-                print(f"[VISUAL ID] Using identity prompt: {prompt[:80]}...")
-                return prompt
-        except Exception as e:
-            print(f"[VISUAL ID] Failed: {e} — falling through")
-
-    # ── NEW: Try entity-aware prompt first (people/company detection) ──
-    if SMART_PROMPTS_AVAILABLE and TLW_STORY:
-        try:
-            enhanced = maybe_enhance_image_angle(TLW_STORY)
-            if enhanced:
-                # v18.7: If force_people and the smart prompt doesn't mention people, inject it
-                if force_people and not any(w in enhanced.lower() for w in ["person", "people", "ceo", "executive", "trader", "official", "man", "woman", "speaking", "podium", "stage", "conference"]):
-                    people_scene = _pick_people_scene(title, summary)
-                    enhanced = f"{people_scene}, {enhanced}"
-                    print(f"[PEOPLE] Injected people scene into smart prompt")
-
-                avoid = ""
-                if IMAGE_DEDUP_AVAILABLE:
-                    try: avoid = get_avoidance_prompt()
-                    except: pass
-                print(f"Using ENTITY-AWARE prompt: {enhanced[:80]}...")
-                return enhanced + avoid
-        except Exception as e:
-            print(f"Smart prompt failed: {e} — falling back")
-
-    # ── Original: Use pre-written image_angle from research_agent ──
+    # ── PRIORITY 1: Hand-crafted image_angle from research_agent (always best) ──
     if TLW_STORY and TLW_STORY.get("image_angle"):
         angle = TLW_STORY["image_angle"]
-
-        # v18.7b: Enrich image_angle with visual identity if available
-        if VISUAL_ID_AVAILABLE:
-            angle = enrich_prompt(angle, TLW_STORY)
 
         # v18.7: If force_people and image_angle doesn't mention people, prepend people scene
         if force_people and not any(w in angle.lower() for w in ["person", "people", "ceo", "executive", "trader", "official", "man", "woman", "speaking", "podium", "stage", "conference"]):
@@ -675,20 +636,52 @@ def generate_flux_prompt(title, summary, style=None, force_people=False):
         if IMAGE_DEDUP_AVAILABLE:
             try: avoid = get_avoidance_prompt()
             except: pass
-        print(f"Using pre-written image_angle: {angle[:80]}...")
+        print(f"[PRIORITY 1] Using pre-written image_angle: {angle[:80]}...")
         return f"{angle}{avoid}, {style['flux_style']}"
+
+    # ── PRIORITY 2: Smart prompts entity-aware enhancement ──
+    if SMART_PROMPTS_AVAILABLE and TLW_STORY:
+        try:
+            enhanced = maybe_enhance_image_angle(TLW_STORY)
+            if enhanced:
+                if force_people and not any(w in enhanced.lower() for w in ["person", "people", "ceo", "executive", "trader", "official", "man", "woman", "speaking", "podium", "stage", "conference"]):
+                    people_scene = _pick_people_scene(title, summary)
+                    enhanced = f"{people_scene}, {enhanced}"
+                    print(f"[PEOPLE] Injected people scene into smart prompt")
+
+                avoid = ""
+                if IMAGE_DEDUP_AVAILABLE:
+                    try: avoid = get_avoidance_prompt()
+                    except: pass
+                print(f"[PRIORITY 2] Using ENTITY-AWARE prompt: {enhanced[:80]}...")
+                return enhanced + avoid
+        except Exception as e:
+            print(f"Smart prompt failed: {e} — falling back")
+
+    # ── PRIORITY 3: Visual identity registry (fallback for stories without blob) ──
+    if VISUAL_ID_AVAILABLE:
+        try:
+            anchor = get_visual_anchor(vi_story)
+            if anchor:
+                avoid = ""
+                if IMAGE_DEDUP_AVAILABLE:
+                    try: avoid = get_avoidance_prompt()
+                    except: pass
+                prompt = f"{anchor}, {style['flux_style']}{avoid}"
+                print(f"[PRIORITY 3] Using visual identity prompt: {prompt[:80]}...")
+                return prompt
+        except Exception as e:
+            print(f"[VISUAL ID] Failed: {e} — falling through")
 
     if not ANTHROPIC_KEY: return None
 
-    # v18.7: TWO different fallback prompts — people vs object
-    if force_people:
-        people_scene = _pick_people_scene(title, summary)
-        prompt = f"""You are an AI image director for The Ledger Wire. Story: {title} Summary: {summary}
-Generate an image prompt featuring A REAL PERSON in context. Use this scene: {people_scene}.
-RULES: Show a real human in the scene. Style: {style["flux_style"]}. NO text overlays. Editorial photography. Photorealistic. Max 30 words."""
-    else:
-        prompt = f"""You are an AI image director for The Ledger Wire. Story: {title} Summary: {summary}
-Generate an image prompt. RULES: Match story literally. Style: {style["flux_style"]}. NO text. NO logos. Editorial photography. Max 25 words."""
+    # v18.7e: Claude fallback — NEVER generate random people
+    # If force_people is true but we have no known person, still don't make up faces
+    prompt = f"""You are an AI image director for The Ledger Wire. Story: {title} Summary: {summary}
+Generate an image prompt. RULES: Match story literally. Style: {style["flux_style"]}.
+NO text overlays. NO people. NO faces. NO portraits. NO human figures.
+Focus on: company logos, products, buildings, trading screens, symbolic objects, or dramatic scenes.
+Editorial photography. Photorealistic. Max 25 words."""
 
     try:
         r = requests.post("https://api.anthropic.com/v1/messages",
